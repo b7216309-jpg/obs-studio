@@ -1,3 +1,7 @@
+This is a Rust Rewrite of OBS Studio.
+
+Same obs studio, but without the bugs. AI generated issues, PRs are welcome.
+
 OBS Studio <https://obsproject.com>
 ===================================
 
