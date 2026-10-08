@@ -36,15 +36,18 @@ for mode in OFF ON; do
   lib=$(ls "$build"/libobs/libobs.so.* | head -1)
   nm -D --defined-only "$lib" | awk '{print $3}' | sort >"/build/exports-$mode.txt"
 
+  # Query the current Ninja build graph, not the filesystem: the /build volume
+  # persists across runs, so a stale .o from an older checkout would linger.
+  libobs_objs=$(ninja -C "$build" -t inputs libobs | grep -E '\.c\.o$' || true)
   if [ "$mode" = ON ]; then
     for obj in bitstream.c.o array-serializer.c.o path-extension.c.o; do
-      if find "$build/libobs" -name "$obj" | grep -q .; then
+      if grep -q "/$obj\$" <<<"$libobs_objs"; then
         echo "FAIL: $obj was compiled into libobs with ENABLE_RUST_LIBOBS=ON"
         exit 1
       fi
     done
   fi
-  if [ "$mode" = OFF ] && ! find "$build/libobs" -name 'path-extension.c.o' | grep -q .; then
+  if [ "$mode" = OFF ] && ! grep -q '/path-extension.c.o$' <<<"$libobs_objs"; then
     echo "FAIL: path-extension.c.o was not compiled into libobs with ENABLE_RUST_LIBOBS=OFF"
     exit 1
   fi
