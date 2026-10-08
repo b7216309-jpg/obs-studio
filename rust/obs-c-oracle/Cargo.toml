@@ -1,0 +1,10 @@
+[package]
+name = "obs-c-oracle"
+version = "0.1.0"
+description = "Test-only: original libobs C sources compiled with oracle_ prefixed symbols"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[build-dependencies]
+cc = "1"

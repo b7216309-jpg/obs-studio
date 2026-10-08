@@ -9,6 +9,8 @@ endif()
 
 include(cmake/obs-core-modules.cmake)
 
+option(ENABLE_RUST_LIBOBS "Replace ported libobs internals with their Rust implementations" OFF)
+
 find_package(SIMDe REQUIRED)
 find_package(Threads REQUIRED)
 
@@ -90,7 +92,7 @@ target_sources(
     util/array-serializer.h
     util/base.c
     util/base.h
-    util/bitstream.c
+    $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:util/bitstream.c>
     util/bitstream.h
     util/bmem.c
     util/bmem.h
@@ -260,6 +262,10 @@ target_link_libraries(
     ZLIB::ZLIB
   PUBLIC SIMDe::SIMDe Threads::Threads
 )
+
+if(ENABLE_RUST_LIBOBS)
+  include(cmake/rust.cmake)
+endif()
 
 if(OS_WINDOWS)
   include(cmake/os-windows.cmake)

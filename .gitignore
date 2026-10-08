@@ -33,6 +33,14 @@
 !INSTALL
 !README.rst
 
+# Rust port and agent instructions
+!/rust
+!AGENTS.md
+!CLAUDE.md
+!Cargo.lock
+!Cargo.toml
+!rust-toolchain.toml
+
 # Exclude lock files
 *.lock.json
 

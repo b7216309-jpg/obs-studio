@@ -1,0 +1,9 @@
+/* Keeps Rust std/core internals out of libobs's dynamic symbol table, so
+ * ENABLE_RUST_LIBOBS=ON exports exactly what the C build exports. The C ABI
+ * shims are #[no_mangle] and stay global. libobs exports no C++ symbols. */
+{
+  local:
+    _ZN*;
+    _R*;
+    rust_eh_personality;
+};

@@ -1,0 +1,17 @@
+# Linux build environment for Tier 2 validation (docs/rust-port/testing-policy.md).
+FROM ubuntu:26.04
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+  build-essential cmake ninja-build pkg-config git ca-certificates curl file \
+  libglib2.0-dev libcurl4-openssl-dev \
+  libavcodec-dev libavdevice-dev libavfilter-dev libavformat-dev libavutil-dev libswresample-dev libswscale-dev \
+  libjansson-dev libx11-xcb-dev libgles2-mesa-dev libwayland-dev libpipewire-0.3-dev libpulse-dev libx264-dev \
+  libmbedtls-dev libgl1-mesa-dev uthash-dev libsimde-dev libluajit-5.1-dev python3-dev \
+  libx11-dev libxcb-randr0-dev libxcb-shm0-dev libxcb-xinerama0-dev libxcb-composite0-dev libxinerama-dev libxcb1-dev libxcb-xfixes0-dev \
+  swig libcmocka-dev libxss-dev libglvnd-dev libxkbcommon-dev libxcomposite-dev libxdamage-dev \
+  libasound2-dev libfdk-aac-dev libfontconfig-dev libfreetype-dev libjack-jackd2-dev libsndio-dev libspeexdsp-dev libudev-dev \
+  libv4l-dev libva-dev libvlc-dev libpci-dev libdrm-dev nlohmann-json3-dev libwebsocketpp-dev libasio-dev libqrcodegencpp-dev \
+  librist-dev libsrt-openssl-dev libvpl-dev \
+  extra-cmake-modules rsync qt6-base-dev qt6-svg-dev qt6-base-private-dev libxcb-xinput-dev libgl-dev
+RUN curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable
+ENV PATH=/root/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
