@@ -2,7 +2,9 @@
 //! compiled as an oracle. Includes buffers over 255 bytes, where both wrap
 //! `pos` back to 0 (the C ABI keeps this; see `obs_util::bitstream`).
 //!
-//! Intentional differences from C: none.
+//! Intentional differences from C: a null `buf` with `len > 0` reads as
+//! empty in Rust; in C it dereferences NULL (undefined behavior). Not
+//! generated here.
 
 use core::ffi::c_int;
 
@@ -27,7 +29,18 @@ fn op() -> impl Strategy<Value = Op> {
 
 /// Runs `ops` on both implementations and compares every result and the
 /// full reader state after each step.
-fn check(mut data: Vec<u8>, len: usize, ops: &[Op]) -> Result<(), TestCaseError> {
+fn check(data: Vec<u8>, len: usize, ops: &[Op]) -> Result<(), TestCaseError> {
+    check_from(data, len, None, ops)
+}
+
+/// Like [`check`], but `start` overrides `(pos, subPos)` after init, so
+/// mid-byte, odd, and zero `subPos` values (e.g. a zeroed struct) are covered.
+fn check_from(
+    mut data: Vec<u8>,
+    len: usize,
+    start: Option<(u8, u8)>,
+    ops: &[Op],
+) -> Result<(), TestCaseError> {
     let mut oracle_data = data.clone();
     let mut ours = rs::bitstream_reader {
         pos: 0,
@@ -47,6 +60,12 @@ fn check(mut data: Vec<u8>, len: usize, ops: &[Op]) -> Result<(), TestCaseError>
     unsafe {
         rs::bitstream_reader_init(&mut ours, data.as_mut_ptr(), len);
         c::oracle_bitstream_reader_init(&mut theirs, oracle_data.as_mut_ptr(), len);
+        if let Some((pos, sub_pos)) = start {
+            ours.pos = pos;
+            ours.subPos = sub_pos;
+            theirs.pos = pos;
+            theirs.subPos = sub_pos;
+        }
 
         for (i, op) in ops.iter().enumerate() {
             let (a, b) = match *op {
@@ -82,6 +101,19 @@ proptest! {
         // Any len up to the buffer size, as the C test does with len = 5 of 6.
         let len = if data.is_empty() { 0 } else { len_cut.index(data.len() + 1) };
         check(data, len, &ops)?;
+    }
+}
+
+proptest! {
+    #[test]
+    fn matches_c_oracle_from_any_state(
+        data in proptest::collection::vec(any::<u8>(), 0..=300),
+        pos in any::<u8>(),
+        sub_pos in any::<u8>(),
+        ops in proptest::collection::vec(op(), 0..=400),
+    ) {
+        let len = data.len();
+        check_from(data, len, Some((pos, sub_pos)), &ops)?;
     }
 }
 

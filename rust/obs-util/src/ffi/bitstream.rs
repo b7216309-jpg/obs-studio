@@ -25,7 +25,8 @@ pub struct bitstream_reader {
 /// # Safety
 ///
 /// `r` must point to a valid `bitstream_reader` whose `buf` is valid for
-/// reads of `len` bytes (or null).
+/// reads of `len` bytes. A null `buf` reads as empty; the C original
+/// dereferences it (undefined behavior) when `len > 0`.
 unsafe fn with_reader<T>(r: *mut bitstream_reader, f: impl FnOnce(&mut Reader<'_, u8>) -> T) -> T {
     // SAFETY: the caller guarantees `r` is valid and not aliased for the call.
     let r = unsafe { &mut *r };
