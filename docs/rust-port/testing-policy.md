@@ -48,10 +48,18 @@ cannot prove both, so every ported unit carries the four tiers below.
 - A layout test MUST assert `size_of`, `align_of`, and every field offset of
   each `#[repr(C)]` struct against values measured from the real C header
   (via the oracle crate, see Tier 3).
-- The CMake build gains an option (`ENABLE_RUST_LIBOBS`, default `OFF`
-  until the port is accepted) that drops the C source from libobs and links
-  the Rust implementation in its place. The unchanged C test MUST pass in
-  **both** configurations.
+- The CMake option `ENABLE_RUST_LIBOBS` (default `OFF` until the port is
+  accepted) drops the ported C sources from libobs and links the Rust
+  implementation in their place. Each port adds its C file to the
+  `$<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:...>` guard in
+  `libobs/CMakeLists.txt`. The unchanged C test MUST pass in **both**
+  configurations.
+- libobs MUST export exactly the same dynamic symbols with
+  `ENABLE_RUST_LIBOBS=ON` as with `OFF`: no missing C symbols, no leaked Rust
+  internals (`libobs/cmake/rust-exports.map` hides them on ELF).
+- Run `rust/tools/linux-validate/run.sh` to check both requirements. It builds
+  OFF and ON in Docker, runs the cmocka tests, and diffs the exported symbols.
+  Paste its summary into the PR.
 - Tests for the C boundary are written in C (they already are). Do not add
   C++ tests for C APIs.
 
@@ -62,8 +70,14 @@ cannot prove both, so every ported unit carries the four tiers below.
   the `cc` crate). Oracle symbols are renamed with an `oracle_` prefix by a
   wrapper `.c` file that `#define`s each exported name and then `#include`s
   the original source file. The original file is not copied or modified.
+- When the C ABI forces a behavior the safe API should not have (e.g. a
+  `uint8_t` position that wraps), make the core generic over it rather than
+  duplicating logic in the shim; see `Position` in
+  `rust/obs-util/src/bitstream.rs`.
 - A `proptest` test feeds random inputs to both the oracle and the Rust shim
   and asserts identical outputs and identical observable state.
+- A mutation check is expected once per port: temporarily break the core and
+  confirm the differential test fails, and say so in the PR.
 - Known, intentional differences from the C behavior (bug fixes) MUST be
   listed in the test file and in the tracking issue, and the property test
   must exclude exactly those inputs, no more.
@@ -84,8 +98,9 @@ cannot prove both, so every ported unit carries the four tiers below.
    failing.
 2. **GREEN:** implement the safe Rust core until Tier 1 passes.
 3. Add the C shim, the layout test, and the Tier 3 differential test.
-4. Wire the `ENABLE_RUST_LIBOBS` CMake path and show the unchanged C test
-   passing with it `ON` and `OFF`.
+4. Add the C file to the `ENABLE_RUST_LIBOBS` guard and run
+   `rust/tools/linux-validate/run.sh`: the unchanged C tests pass `ON` and
+   `OFF`, and the exported symbol sets are identical.
 5. Record every intentional behavior difference in the tracking issue.
 
 A port is not done until all applicable tiers pass. "Tier 1 passes" alone is
@@ -96,7 +111,11 @@ not done.
 ```text
 Cargo.toml                    # workspace root, members = ["rust/*"]
 rust-toolchain.toml           # pinned toolchain (required by soldr)
+libobs/cmake/rust.cmake       # Corrosion import + whole-archive link into libobs
+libobs/cmake/rust-exports.map # hides Rust internals from libobs exports (ELF)
 rust/
+  libobs-rust/                # the ONLY staticlib; re-exports every port's ffi
+  tools/linux-validate/       # Docker harness for Tier 2 (not a crate)
   obs-util/                   # ports of libobs/util/*
     src/bitstream.rs          # safe core (Tier 1 target)
     src/ffi/bitstream.rs      # extern "C" shim, #[repr(C)] types (Tier 2)
@@ -108,6 +127,10 @@ rust/
     oracle/bitstream.c        # #define renames + #include of libobs/util/bitstream.c
 ```
 
+Port crates are plain `rlib`s. Only `libobs-rust` is a `staticlib`: each
+staticlib embeds its own copy of `std`, so libobs must link exactly one. A new
+port crate is added as a dependency of `libobs-rust` and re-exported there.
+
 New libobs areas get their own crate under `rust/` named after the libobs
 directory (`obs-util`, `obs-graphics`, `obs-media-io`, ...).
 
@@ -116,8 +139,9 @@ directory (`obs-util`, `obs-graphics`, `obs-media-io`, ...).
 - Use `soldr cargo ...`, never bare `cargo`.
 - `soldr cargo clippy --all-targets -- -D warnings` and `soldr cargo fmt --check`
   must be clean.
-- `unsafe` is allowed only in `src/ffi/` shims and in `obs-c-oracle`. Each
-  `unsafe` block has a `// SAFETY:` comment.
+- `unsafe` is allowed only in `src/ffi/` shims, in `obs-c-oracle`, and in the
+  Tier 2/3 test files that call C ABI functions. Each `unsafe` block has a
+  `// SAFETY:` comment.
 - Do not add new GitHub Actions workflow files without explicit sign-off from
   the maintainer. Hook tests into existing workflows instead.
 - Do not edit a public C header, an existing C test, or an exported function

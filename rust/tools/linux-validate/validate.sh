@@ -1,0 +1,50 @@
+#!/bin/bash
+# Tier 2 validation (docs/rust-port/testing-policy.md), run inside the
+# container built from ./Dockerfile; see run.sh. Builds libobs, the cmocka
+# tests and the decklink plugin with ENABLE_RUST_LIBOBS=OFF and =ON, runs the
+# unchanged C tests in both, and fails unless both builds export exactly the
+# same dynamic symbols from libobs.
+set -euo pipefail
+
+git config --global --add safe.directory /src
+mkdir -p /src
+rsync -a --delete --exclude /target /ro/ /src/
+cd /src
+for sub in plugins/obs-browser plugins/obs-websocket; do
+  if [ -z "$(ls -A "$sub" 2>/dev/null)" ]; then
+    git submodule update --init --depth 1 "$sub"
+  fi
+done
+
+for mode in OFF ON; do
+  build="/build/rust-$mode"
+  echo "== [$mode] configure + build"
+  cmake -S /src -B "$build" -G Ninja \
+    -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+    -DENABLE_UNIT_TESTS=ON \
+    -DENABLE_RUST_LIBOBS="$mode" \
+    -DENABLE_FRONTEND=OFF -DENABLE_SCRIPTING=OFF -DENABLE_BROWSER=OFF \
+    -DENABLE_WEBSOCKET=OFF -DENABLE_AJA=OFF -DENABLE_WEBRTC=OFF \
+    -DENABLE_NVENC=OFF -DENABLE_QSV11=OFF -DENABLE_VST=OFF -DENABLE_WAYLAND=OFF \
+    >"$build.configure.log" 2>&1 || { tail -40 "$build.configure.log"; exit 1; }
+  cmake --build "$build" --target libobs test_bitstream test_darray test_serializer test_os_path decklink \
+    >"$build.build.log" 2>&1 || { grep -E "error|Error" "$build.build.log" | head -40; exit 1; }
+
+  echo "== [$mode] ctest"
+  ctest --test-dir "$build" --output-on-failure
+
+  lib=$(ls "$build"/libobs/libobs.so.* | head -1)
+  nm -D --defined-only "$lib" | awk '{print $3}' | sort >"/build/exports-$mode.txt"
+
+  if [ "$mode" = ON ] && find "$build/libobs" -name 'bitstream.c.o' | grep -q .; then
+    echo "FAIL: util/bitstream.c was compiled into libobs with ENABLE_RUST_LIBOBS=ON"
+    exit 1
+  fi
+  plugin=$(find "$build" -name 'decklink.so' | head -1)
+  echo "== [$mode] decklink.so imports:"
+  nm -D --undefined-only "$plugin" | grep bitstream_reader
+done
+
+echo "== libobs exported symbols, OFF vs ON"
+diff /build/exports-OFF.txt /build/exports-ON.txt
+echo "IDENTICAL ($(wc -l </build/exports-ON.txt) symbols)"
