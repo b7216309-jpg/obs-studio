@@ -39,12 +39,14 @@ for mode in OFF ON; do
 
   # The test executables load @rpath/libobs.framework, and their build rpath
   # (@executable_path/../Frameworks) only holds it in an app bundle, so point
-  # dyld at the framework's build directory.
-  framework_dir="${lib%%/libobs.framework/*}"
+  # dyld at the framework's build directory (absolute: ctest runs each test
+  # from its own directory).
+  framework_dir="$PWD/${lib%%/libobs.framework/*}"
 
   echo "== [$mode] ctest"
   DYLD_FRAMEWORK_PATH="$framework_dir" \
     ctest --test-dir "$build" -C RelWithDebInfo --output-on-failure
+
   nm -gU "$lib" | awk '{print $3}' | sort >"exports-$mode.txt"
 done
 
