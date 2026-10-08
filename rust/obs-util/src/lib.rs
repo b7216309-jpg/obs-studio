@@ -4,5 +4,11 @@
 //! original `EXPORT` symbols live in [`ffi`]. See
 //! `docs/rust-port/testing-policy.md`.
 
+#[cfg(test)]
+use obs_c_oracle as _; // links the test bmalloc/bfree (oracle/test_bmem.c)
+
+pub mod array_serializer;
 pub mod bitstream;
+pub mod darray;
 pub mod ffi;
+pub mod path_extension;

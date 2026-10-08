@@ -36,8 +36,16 @@ for mode in OFF ON; do
   lib=$(ls "$build"/libobs/libobs.so.* | head -1)
   nm -D --defined-only "$lib" | awk '{print $3}' | sort >"/build/exports-$mode.txt"
 
-  if [ "$mode" = ON ] && find "$build/libobs" -name 'bitstream.c.o' | grep -q .; then
-    echo "FAIL: util/bitstream.c was compiled into libobs with ENABLE_RUST_LIBOBS=ON"
+  if [ "$mode" = ON ]; then
+    for obj in bitstream.c.o array-serializer.c.o path-extension.c.o; do
+      if find "$build/libobs" -name "$obj" | grep -q .; then
+        echo "FAIL: $obj was compiled into libobs with ENABLE_RUST_LIBOBS=ON"
+        exit 1
+      fi
+    done
+  fi
+  if [ "$mode" = OFF ] && ! find "$build/libobs" -name 'path-extension.c.o' | grep -q .; then
+    echo "FAIL: path-extension.c.o was not compiled into libobs with ENABLE_RUST_LIBOBS=OFF"
     exit 1
   fi
   plugin=$(find "$build" -name 'decklink.so' | head -1)

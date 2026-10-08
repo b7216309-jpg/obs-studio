@@ -1,6 +1,7 @@
 //! Tier 1: safe-core tests. `bitstream_test` mirrors
 //! `test/cmocka/test_bitstream.c` assertion for assertion.
 
+use obs_c_oracle as _; // links the test bmalloc/bfree (oracle/test_bmem.c)
 use obs_util::bitstream::BitstreamReader;
 
 #[test]

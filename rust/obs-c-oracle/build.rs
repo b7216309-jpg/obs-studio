@@ -6,17 +6,33 @@ fn main() {
 
     cc::Build::new()
         .file("oracle/bitstream.c")
+        .file("oracle/path_extension.c")
+        .file("oracle/array_serializer.c")
+        .file("oracle/darray.c")
         .include(&libobs)
         .std("c11")
         .compile("obs_c_oracle");
 
+    // Test allocator, whole-archive so bmalloc/bfree resolve regardless of
+    // link order relative to obs-util.
+    cc::Build::new()
+        .file("oracle/test_bmem.c")
+        .include(&libobs)
+        .std("c11")
+        .link_lib_modifier("+whole-archive")
+        .compile("obs_c_oracle_bmem");
+
     println!("cargo:rerun-if-changed=oracle");
-    println!(
-        "cargo:rerun-if-changed={}",
-        libobs.join("util/bitstream.c").display()
-    );
-    println!(
-        "cargo:rerun-if-changed={}",
-        libobs.join("util/bitstream.h").display()
-    );
+    for header in [
+        "util/bitstream.c",
+        "util/bitstream.h",
+        "util/path-extension.c",
+        "util/array-serializer.c",
+        "util/array-serializer.h",
+        "util/darray.h",
+        "util/serializer.h",
+        "util/bmem.h",
+    ] {
+        println!("cargo:rerun-if-changed={}", libobs.join(header).display());
+    }
 }
