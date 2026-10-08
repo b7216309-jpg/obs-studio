@@ -426,3 +426,83 @@ jobs:
         with:
           name: obs-studio-windows-${{ matrix.architecture }}-${{ needs.check-event.outputs.commitHash }}
           path: ${{ github.workspace }}/build_${{ matrix.architecture }}/obs-studio-*-windows-${{ matrix.architecture }}.zip
+
+  rust-tests:
+    name: Rust Tests 🦀
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-26.04, macos-26, windows-2025-vs2026]
+    runs-on: ${{ matrix.os }}
+    needs: check-event
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Same soldr-wrapped commands as docs/rust-port/testing-policy.md.
+      # setup-soldr installs soldr and the toolchain from rust-toolchain.toml.
+      - name: Set Up soldr 🦀
+        uses: zackees/setup-soldr@0f223ac68e97fccaaeab026ef1861e5bf73639ac # v0.9.85
+        with:
+          cache: false
+
+      - name: Install Rust Components 🦀
+        run: |
+          rustup toolchain install
+          rustup component add clippy rustfmt
+          rustup show
+
+      - name: Run Rust Tests 🧪
+        run: soldr cargo test --workspace --locked
+
+      - name: Run Clippy 📎
+        run: soldr cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Check Formatting 🎨
+        run: soldr cargo fmt --all --check
+
+  rust-linux-tier2:
+    name: Rust Tier 2 Linux 🐧
+    runs-on: ubuntu-26.04
+    needs: check-event
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          submodules: recursive
+
+      - name: Validate Tier 2 (ENABLE_RUST_LIBOBS OFF vs ON) ✅
+        run: bash rust/tools/linux-validate/run.sh
+
+  rust-tier2:
+    name: Rust Tier 2 ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-26, windows-2025-vs2026]
+    runs-on: ${{ matrix.os }}
+    needs: check-event
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Validate Tier 2 on macOS (ENABLE_RUST_LIBOBS OFF vs ON) 🍏
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          brew install cmocka
+          bash rust/tools/tier2-validate/validate.sh
+
+      - name: Validate Tier 2 on Windows (ENABLE_RUST_LIBOBS OFF vs ON) 🪟
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          vcpkg install cmocka:x64-windows
+          if ($LASTEXITCODE -ne 0) { throw "vcpkg install failed ($LASTEXITCODE)" }
+          ./rust/tools/tier2-validate/validate.ps1 -CMockaPrefix "$env:VCPKG_INSTALLATION_ROOT/installed/x64-windows"
