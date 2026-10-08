@@ -116,6 +116,7 @@ target_sources(
     util/file-serializer.h
     util/lexer.c
     util/lexer.h
+    util/path-extension.c
     util/pipe.c
     util/pipe.h
     util/platform.c
