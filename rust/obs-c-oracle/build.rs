@@ -2,7 +2,14 @@ use std::path::PathBuf;
 
 fn main() {
     let manifest = PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap());
-    let libobs = manifest.join("../../libobs").canonicalize().unwrap();
+    // No canonicalize(): on Windows it yields a verbatim `\\?\` path, and
+    // MSVC cannot resolve `#include "util/..."` against such an include dir.
+    // CARGO_MANIFEST_DIR is already absolute.
+    let libobs = manifest
+        .ancestors()
+        .nth(2)
+        .expect("rust/obs-c-oracle has a repo root two levels up")
+        .join("libobs");
 
     cc::Build::new()
         .file("oracle/bitstream.c")

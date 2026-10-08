@@ -31,14 +31,20 @@ for mode in OFF ON; do
     --target libobs test_bitstream test_darray test_serializer test_os_path \
     >"$build.build.log" 2>&1 || { grep -E "error|Error" "$build.build.log" | head -40; exit 1; }
 
-  echo "== [$mode] ctest"
-  ctest --test-dir "$build" -C RelWithDebInfo --output-on-failure
-
   lib=$(find "$build" -path '*libobs.framework*' -name libobs -type f | head -1)
   if [ -z "$lib" ]; then
     echo "FAIL: libobs binary not found inside libobs.framework in $build"
     exit 1
   fi
+
+  # The test executables load @rpath/libobs.framework, and their build rpath
+  # (@executable_path/../Frameworks) only holds it in an app bundle, so point
+  # dyld at the framework's build directory.
+  framework_dir="${lib%%/libobs.framework/*}"
+
+  echo "== [$mode] ctest"
+  DYLD_FRAMEWORK_PATH="$framework_dir" \
+    ctest --test-dir "$build" -C RelWithDebInfo --output-on-failure
   nm -gU "$lib" | awk '{print $3}' | sort >"exports-$mode.txt"
 done
 
