@@ -110,7 +110,7 @@ target_sources(
     util/curl/curl-helper.h
     util/darray.h
     util/deque.h
-    util/dstr.c
+    $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:util/dstr.c>
     util/dstr-libc.c
     util/dstr.h
     util/file-serializer.c

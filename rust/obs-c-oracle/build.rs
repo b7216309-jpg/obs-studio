@@ -27,6 +27,7 @@ fn main() {
         .file("oracle/darray.c")
         .file("oracle/crc32.c")
         .file("oracle/lexer.c")
+        .file("oracle/dstr.c")
         .file("oracle/vec2.c")
         .include(&libobs)
         .std("c11")
@@ -57,6 +58,7 @@ fn main() {
         "util/lexer.c",
         "util/lexer.h",
         "util/dstr.h",
+        "util/dstr.c",
         "graphics/vec2.c",
         "graphics/vec2.h",
         "graphics/math-defs.h",

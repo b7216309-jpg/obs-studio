@@ -50,6 +50,7 @@ tests and run them with `ctest`.
 | `libobs/util/path-extension.c` (extracted from `platform.c`) | `obs-util::path_extension` | NULL `path` returns NULL in Rust (C dereferences it). |
 | `libobs/util/array-serializer.c` | `obs-util::array_serializer` | `get_pos` returns `bytes.num`, not `cur_pos`, as in C. `serializer.h` is header-inline (layout test only). |
 | `libobs/util/crc32.c` | `obs-util::crc32` | no intentional differences |
+| `libobs/util/dstr.c` (printf, wide-char and conversion functions moved to `dstr-libc.c`, which stays in C) | `obs-util::dstr` | Sources are read before the destination changes, so a source inside the destination reads as it was (C reads moved or freed memory). Past a source's end, or through a NULL source with a length, reads NUL. Out-of-range `insert*`/`remove`/`right` arguments do nothing; NULL or empty `find` in `dstr_replace` does nothing (C crashes or loops forever); `dstr_insert_ch` does not write C's extra byte past the buffer; `strlist_split` on NUL is the whole string. `dstr.h` inline helpers stay in C (layout test only). |
 | `libobs/util/lexer.c` | `obs-util::lexer` | `lexer_getstroffset` with a NULL `lex->text` leaves the outputs untouched (C dereferences it). `lexer.h` inline helpers stay in C (layout tests only). |
 | `libobs/util/darray.h` (header-inline, not swapped) | `obs-util::darray` | Layout and parity only; the `struct darray` layout is the contract. |
 | `libobs/graphics/vec2.c` | `obs-graphics::vec2` | `vec2_norm` leaves dst unchanged for zero/NaN length, as in C; header-inline helpers stay C |
