@@ -12,6 +12,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   libasound2-dev libfdk-aac-dev libfontconfig-dev libfreetype-dev libjack-jackd2-dev libsndio-dev libspeexdsp-dev libudev-dev \
   libv4l-dev libva-dev libvlc-dev libpci-dev libdrm-dev nlohmann-json3-dev libwebsocketpp-dev libasio-dev libqrcodegencpp-dev \
   librist-dev libsrt-openssl-dev libvpl-dev \
-  extra-cmake-modules rsync qt6-base-dev qt6-svg-dev qt6-base-private-dev libxcb-xinput-dev libgl-dev
+  extra-cmake-modules rsync ccache qt6-base-dev qt6-svg-dev qt6-base-private-dev libxcb-xinput-dev libgl-dev
 RUN curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable
 ENV PATH=/root/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin

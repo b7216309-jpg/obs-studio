@@ -1,0 +1,53 @@
+# obs-rust/obs-studio local gate (zackees/ci.yml GATE-001..010).
+#
+# Before pushing, from a clean, committed tree:
+#
+#   uvx --from git+https://github.com/zackees/ci.yml@70e8fefe414840ec786a24b71c82c55731e4f8cc ci-lint local-gate run
+#
+# runs every lane below (each cached on its inputs, so an unchanged lane is
+# skipped in seconds) and stamps HEAD with a tree-bound `Local-Gate:` trailer
+# plus one `Ci-Attestation:` trailer per gate (ci-attestations.yml). CI's
+# ci-mode job reads them: an attested, in-policy PR head skips the Linux
+# unit-test jobs the gate already ran. Install the pre-push hook once per
+# clone with `... ci-lint local-gate install-hook`.
+#
+# ./lint and ./unittest run the same lanes without stamping.
+[gate]
+run = ["python3", "ci/local_gate.py"]
+verify = "build-project.yaml:ci-mode"
+# Not skippable by a Linux attestation, so they start at once instead of
+# waiting on ci-mode: event data, the full OBS builds (themselves skipped for
+# non-native PRs by check-event's quick gate), and the macOS/Windows Rust and
+# Tier 2 legs. pr-pull.yaml's format/validation jobs are seconds long.
+verify-exempt = ["check-event", "macos-build", "ubuntu-build", "flatpak-build", "windows-build", "rust-tests", "rust-tier2", "pr-pull.yaml"]
+mode = "shadow"
+
+# clang-format 22.1.3 + gersemi 0.25.0 (pinned via uvx, same files as
+# build-aux/run-clang-format and run-gersemi), rustfmt, clippy -D warnings.
+[gate.lanes.lint]
+run = ["python3", "ci/local_gate.py", "--lane", "lint"]
+tools = ["uvx", "soldr"]
+
+# Rust Tiers 1-3 (docs/rust-port/testing-policy.md).
+[gate.lanes.rust-test]
+run = ["python3", "ci/local_gate.py", "--lane", "rust-test"]
+tools = ["soldr"]
+
+# Tier 2: libobs + cmocka with ENABLE_RUST_LIBOBS OFF and ON in Docker
+# (ubuntu-26.04, the CI image), exported-symbol diff.
+[gate.lanes.tier2-linux]
+run = ["python3", "ci/local_gate.py", "--lane", "tier2-linux"]
+tools = ["docker"]
+
+# GATE-008: decided from THIS file as committed on the PR's base. Fails
+# closed: fork or non-writer author, `ci-full` label, head not attested for
+# its exact tree, a missing lane, a changed surface, or the 1-in-10 audit
+# sample all run the jobs. Pushes to master always run everything.
+[gate.trust]
+mode = "enforce"
+skip = ["build-project.yaml:rust-tests-linux", "build-project.yaml:rust-linux-tier2"]
+covered-by = { "build-project.yaml:rust-tests-linux" = ["lint", "rust-test"], "build-project.yaml:rust-linux-tier2" = ["tier2-linux"] }
+surfaces = [
+  "rust/tools/linux-validate/**",
+  "rust-toolchain.toml",
+]

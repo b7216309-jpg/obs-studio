@@ -30,8 +30,7 @@ elseif(OS_WINDOWS)
 elseif(OS_MACOS)
   target_link_options(
     libobs
-    PRIVATE
-      "LINKER:-unexported_symbols_list,${CMAKE_CURRENT_SOURCE_DIR}/cmake/rust-unexports-macos.txt"
+    PRIVATE "LINKER:-unexported_symbols_list,${CMAKE_CURRENT_SOURCE_DIR}/cmake/rust-unexports-macos.txt"
   )
   set_property(TARGET libobs APPEND PROPERTY LINK_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/rust-unexports-macos.txt")
 endif()
