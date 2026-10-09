@@ -27,7 +27,10 @@ static void dummy_crash_handler(const char *format, va_list args, void *param)
 	UNUSED_PARAMETER(format);
 	UNUSED_PARAMETER(args);
 	UNUSED_PARAMETER(param);
-	fail_msg("crash handler must never be called");
+	/* fail_msg() expands to cm_print_error(), which the Windows cmocka
+	 * library does not export; report via stdio and use plain fail(). */
+	fprintf(stderr, "crash handler must never be called\n");
+	fail();
 }
 
 static void blog_delivers_level_and_message_test(void **state)
