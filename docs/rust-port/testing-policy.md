@@ -181,6 +181,35 @@ CURRENT C behavior, including odd or buggy behavior. Comment such cases as
   `brealloc(NULL, n)` counts as an allocation, and `bfree(NULL)` does not
   decrement.
 
+### Port order and rules for Phase 4 (stateful, I/O and platform utilities)
+
+The characterization tests `test_file_serializer`, `test_config_file`,
+`test_threading`, `test_task`, `test_pipe`, `test_profiler` and
+`test_platform` land first (the first Phase 4 PR) and are thereafter unchanged
+Tier 2 checks.
+
+1. `file-serializer.c` and `buffered-file-serializer.c`
+2. `config-file.c`
+3. `task.c`
+4. `profiler.c` and `source-profiler.c`
+5. `pipe.c` / `pipe-posix.c` / `pipe-windows.c`
+6. `threading-posix.c` / `threading-windows.c`
+7. `platform.c`, then `platform-nix*.c` / `platform-windows.c`
+
+- Every test that touches files uses its own temp directory, relative to the
+  ctest working directory, and removes it in teardown.
+- No sleeps: synchronize on events, semaphores or joins.
+- Threading tests MUST be deterministic: 100 consecutive runs without a flake.
+- Tier 3 parity for I/O code runs the oracle and the Rust shim against
+  separate temp directories and compares the resulting files byte for byte,
+  plus the return values.
+- The `config-file` parity test MUST cover arbitrary INI input, including
+  malformed lines.
+- The threading and task ports add a loom or stress-style Rust test on top of
+  parity.
+- Per-OS files are ported per OS. A port is done only when that OS's Tier 2
+  passes in CI.
+
 ## Header-inline code (static inline functions and macros)
 
 Code that lives entirely in a public header as `static inline` functions or

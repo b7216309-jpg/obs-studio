@@ -1,6 +1,9 @@
 project(obs-cmocka)
 
 find_package(CMocka CONFIG REQUIRED)
+if(NOT MSVC)
+  find_package(Threads REQUIRED)
+endif()
 
 # Every test executable joins this target, so the Tier 2 validators
 # (rust/tools/*-validate) build `cmocka-tests` instead of a hand-kept list and a
@@ -141,3 +144,65 @@ target_link_libraries(test_bmem PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
 
 add_dependencies(cmocka-tests test_bmem)
 add_test(test_bmem ${CMAKE_CURRENT_BINARY_DIR}/test_bmem)
+
+# file serializer test (file-serializer.c, buffered-file-serializer.c)
+add_executable(test_file_serializer test_file_serializer.c)
+target_include_directories(test_file_serializer PRIVATE ${CMOCKA_INCLUDE_DIR})
+target_link_libraries(test_file_serializer PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
+
+add_dependencies(cmocka-tests test_file_serializer)
+add_test(test_file_serializer ${CMAKE_CURRENT_BINARY_DIR}/test_file_serializer)
+
+# config file test (config-file.c)
+add_executable(test_config_file test_config_file.c)
+target_include_directories(test_config_file PRIVATE ${CMOCKA_INCLUDE_DIR})
+target_link_libraries(test_config_file PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
+
+add_dependencies(cmocka-tests test_config_file)
+add_test(test_config_file ${CMAKE_CURRENT_BINARY_DIR}/test_config_file)
+
+# threading test (threading-posix.c, threading-windows.c)
+add_executable(test_threading test_threading.c)
+target_include_directories(test_threading PRIVATE ${CMOCKA_INCLUDE_DIR})
+target_link_libraries(test_threading PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
+if(NOT MSVC)
+  target_link_libraries(test_threading PRIVATE Threads::Threads)
+endif()
+
+add_dependencies(cmocka-tests test_threading)
+add_test(test_threading ${CMAKE_CURRENT_BINARY_DIR}/test_threading)
+
+# task test (task.c)
+add_executable(test_task test_task.c)
+target_include_directories(test_task PRIVATE ${CMOCKA_INCLUDE_DIR})
+target_link_libraries(test_task PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
+if(NOT MSVC)
+  target_link_libraries(test_task PRIVATE Threads::Threads)
+endif()
+
+add_dependencies(cmocka-tests test_task)
+add_test(test_task ${CMAKE_CURRENT_BINARY_DIR}/test_task)
+
+# pipe test (pipe.c, pipe-posix.c, pipe-windows.c)
+add_executable(test_pipe test_pipe.c)
+target_include_directories(test_pipe PRIVATE ${CMOCKA_INCLUDE_DIR})
+target_link_libraries(test_pipe PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
+
+add_dependencies(cmocka-tests test_pipe)
+add_test(test_pipe ${CMAKE_CURRENT_BINARY_DIR}/test_pipe)
+
+# profiler test (profiler.c, source-profiler.c)
+add_executable(test_profiler test_profiler.c)
+target_include_directories(test_profiler PRIVATE ${CMOCKA_INCLUDE_DIR})
+target_link_libraries(test_profiler PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
+
+add_dependencies(cmocka-tests test_profiler)
+add_test(test_profiler ${CMAKE_CURRENT_BINARY_DIR}/test_profiler)
+
+# platform test (platform.c, platform-nix*.c, platform-windows.c)
+add_executable(test_platform test_platform.c)
+target_include_directories(test_platform PRIVATE ${CMOCKA_INCLUDE_DIR})
+target_link_libraries(test_platform PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
+
+add_dependencies(cmocka-tests test_platform)
+add_test(test_platform ${CMAKE_CURRENT_BINARY_DIR}/test_platform)
