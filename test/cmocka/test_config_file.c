@@ -33,27 +33,10 @@
 #define BADDIR_PATH TMP_DIR "/nodir/x.ini"
 
 static const char *const test_files[] = {
-	OPEN_PATH,
-	MISSING_PATH,
-	ALWAYS_PATH,
-	CREATE_PATH,
-	EMPTY_PATH,
-	DEFSAVE_PATH,
-	ROUNDTRIP_PATH,
-	ESCAPE_PATH,
-	DEFAULTS_PATH,
-	SAFE1_PATH,
-	SAFE1_PATH ".tmp",
-	SAFE1_PATH ".bak",
-	SAFE2_PATH,
-	SAFE2_PATH ".tmp",
-	SAFE2_PATH ".bak",
-	SAFE3_PATH,
-	SAFE3_PATH ".tmp",
-	SAFE3_PATH ".bak",
-	SAFE4_PATH,
-	SAFE4_PATH ".tmp",
-	SAFE4_PATH ".bak",
+	OPEN_PATH,      MISSING_PATH,      ALWAYS_PATH,       CREATE_PATH, EMPTY_PATH,        DEFSAVE_PATH,
+	ROUNDTRIP_PATH, ESCAPE_PATH,       DEFAULTS_PATH,     SAFE1_PATH,  SAFE1_PATH ".tmp", SAFE1_PATH ".bak",
+	SAFE2_PATH,     SAFE2_PATH ".tmp", SAFE2_PATH ".bak", SAFE3_PATH,  SAFE3_PATH ".tmp", SAFE3_PATH ".bak",
+	SAFE4_PATH,     SAFE4_PATH ".tmp", SAFE4_PATH ".bak",
 };
 
 static void remove_test_files(void)

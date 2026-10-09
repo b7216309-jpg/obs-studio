@@ -47,8 +47,8 @@
 #define D_NEST_C ROOT "/a/b/c"
 
 static const char *const file_paths[] = {
-	P_UTF8_PLAIN, P_UTF8_BOM, P_UTF8_EMPTY, P_UTF8_BOMONLY, P_FREAD,    P_SAFE,      P_SAFE_TMP,
-	P_SAFE_BAK,   P_MBS,      P_MISSING,    P_EXISTS,       P_REN_A,    P_REN_B,     P_SR_TARGET,
+	P_UTF8_PLAIN, P_UTF8_BOM, P_UTF8_EMPTY, P_UTF8_BOMONLY, P_FREAD,  P_SAFE,  P_SAFE_TMP,
+	P_SAFE_BAK,   P_MBS,      P_MISSING,    P_EXISTS,       P_REN_A,  P_REN_B, P_SR_TARGET,
 	P_SR_FROM,    P_SR_BAK,   P_SEEK,       P_LIST_1,       P_LIST_2,
 };
 

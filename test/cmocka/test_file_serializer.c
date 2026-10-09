@@ -83,9 +83,9 @@ static void test_output_input_roundtrip(void **state)
 	UNUSED_PARAMETER(state);
 
 	static const uint8_t expected[] = {
-		0xAA,                   /* s_w8 */
-		0x01, 0x02, 0x03, 0x04, /* s_wl32(0x04030201) */
-		0x12, 0x34,             /* s_wb16(0x1234) */
+		0xAA,                        /* s_w8 */
+		0x01, 0x02, 0x03, 0x04,      /* s_wl32(0x04030201) */
+		0x12, 0x34,                  /* s_wb16(0x1234) */
 		'h',  'e',  'l',  'l',  'o', /* s_write */
 	};
 	uint8_t back[sizeof(expected)] = {0};
@@ -498,20 +498,13 @@ static void test_buffered_seek_past_end(void **state)
 int main(void)
 {
 	const struct CMUnitTest tests[] = {
-		cmocka_unit_test(test_output_input_roundtrip),
-		cmocka_unit_test(test_serialize_helper),
-		cmocka_unit_test(test_output_seek_overwrite),
-		cmocka_unit_test(test_input_seek),
-		cmocka_unit_test(test_input_missing_file),
-		cmocka_unit_test(test_output_unwritable_path),
-		cmocka_unit_test(test_safe_rejects_bad_temp_ext),
-		cmocka_unit_test(test_safe_temp_ext_without_dot),
-		cmocka_unit_test(test_safe_temp_ext_with_dot),
-		cmocka_unit_test(test_safe_replaces_existing),
-		cmocka_unit_test(test_safe_seek_and_pos),
-		cmocka_unit_test(test_buffered_defaults),
-		cmocka_unit_test(test_buffered_small_chunks),
-		cmocka_unit_test(test_buffered_seek_overwrite),
+		cmocka_unit_test(test_output_input_roundtrip),    cmocka_unit_test(test_serialize_helper),
+		cmocka_unit_test(test_output_seek_overwrite),     cmocka_unit_test(test_input_seek),
+		cmocka_unit_test(test_input_missing_file),        cmocka_unit_test(test_output_unwritable_path),
+		cmocka_unit_test(test_safe_rejects_bad_temp_ext), cmocka_unit_test(test_safe_temp_ext_without_dot),
+		cmocka_unit_test(test_safe_temp_ext_with_dot),    cmocka_unit_test(test_safe_replaces_existing),
+		cmocka_unit_test(test_safe_seek_and_pos),         cmocka_unit_test(test_buffered_defaults),
+		cmocka_unit_test(test_buffered_small_chunks),     cmocka_unit_test(test_buffered_seek_overwrite),
 		cmocka_unit_test(test_buffered_seek_past_end),
 	};
 
