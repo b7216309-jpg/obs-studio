@@ -42,9 +42,16 @@ for mode in OFF ON; do
   # dyld at the framework's build directory (absolute: ctest runs each test
   # from its own directory).
   framework_dir="$PWD/${lib%%/libobs.framework/*}"
+  # libobs in turn loads @rpath/libavcodec.dylib etc. from the pre-built
+  # obs-deps that the preset unpacked under .deps.
+  avcodec=$(find "$PWD/.deps" -path '*/lib/libavcodec*.dylib' | head -1)
+  if [ -z "$avcodec" ]; then
+    echo "FAIL: obs-deps libavcodec not found under .deps"
+    exit 1
+  fi
 
   echo "== [$mode] ctest"
-  DYLD_FRAMEWORK_PATH="$framework_dir" \
+  DYLD_FRAMEWORK_PATH="$framework_dir" DYLD_LIBRARY_PATH="$(dirname "$avcodec")" \
     ctest --test-dir "$build" -C RelWithDebInfo --output-on-failure
 
   nm -gU "$lib" | awk '{print $3}' | sort >"exports-$mode.txt"

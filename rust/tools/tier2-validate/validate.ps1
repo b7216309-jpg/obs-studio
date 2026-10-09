@@ -46,13 +46,25 @@ foreach ($mode in 'OFF', 'ON') {
     --target libobs test_bitstream test_darray test_serializer test_os_path
   if ($LASTEXITCODE -ne 0) { throw "cmake build failed ($LASTEXITCODE)" }
 
-  Write-Host "== [$mode] ctest"
-  ctest --test-dir $build -C RelWithDebInfo --output-on-failure
-  if ($LASTEXITCODE -ne 0) { throw "ctest failed ($LASTEXITCODE)" }
-
   $dll = Get-ChildItem -Path $build -Recurse -Filter obs.dll |
     Where-Object { $_.FullName -match 'libobs' } | Select-Object -First 1
   if (-not $dll) { throw "obs.dll not found under $build" }
+
+  # The test executables sit apart from obs.dll and its runtime DLLs
+  # (w32-pthreads, pre-built obs-deps FFmpeg), so put those on PATH.
+  $pthreads = Get-ChildItem -Path $build -Recurse -Filter w32-pthreads.dll | Select-Object -First 1
+  if (-not $pthreads) { throw "w32-pthreads.dll not found under $build" }
+  $avcodec = Get-ChildItem -Path (Join-Path $RepoRoot '.deps') -Recurse -Filter 'avcodec-*.dll' |
+    Select-Object -First 1
+  if (-not $avcodec) { throw 'obs-deps avcodec DLL not found under .deps' }
+  $savedPath = $env:PATH
+  $env:PATH = "$($dll.DirectoryName);$($pthreads.DirectoryName);$($avcodec.DirectoryName);$env:PATH"
+
+  Write-Host "== [$mode] ctest"
+  ctest --test-dir $build -C RelWithDebInfo --output-on-failure
+  $ctestExit = $LASTEXITCODE
+  $env:PATH = $savedPath
+  if ($ctestExit -ne 0) { throw "ctest failed ($ctestExit)" }
 
   $dumpbin = Find-Dumpbin
   $out = & $dumpbin /exports $dll.FullName
