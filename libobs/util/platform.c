@@ -770,8 +770,14 @@ char *os_generate_formatted_filename(const char *extension, bool space, const ch
 
 	dstr_free(&c);
 
-	if (sf.len > 255)
-		dstr_mid(&sf, &sf, 0, 255);
+	if (sf.len > 255) {
+		/* Back up to a UTF-8 character boundary so a multibyte character
+		   is not split by the 255-byte limit */
+		size_t len = 255;
+		while (len > 0 && ((unsigned char)sf.array[len] & 0xC0) == 0x80)
+			len--;
+		dstr_mid(&sf, &sf, 0, len);
+	}
 
 	return sf.array;
 }
