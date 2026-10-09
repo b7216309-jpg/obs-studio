@@ -647,21 +647,6 @@ int os_mkdirs(const char *dir)
 	return ret;
 }
 
-const char *os_get_path_extension(const char *path)
-{
-	for (size_t pos = strlen(path); pos > 0; pos--) {
-		switch (path[pos - 1]) {
-		case '.':
-			return path + pos - 1;
-		case '/':
-		case '\\':
-			return NULL;
-		}
-	}
-
-	return NULL;
-}
-
 static inline bool valid_string(const char *str)
 {
 	while (str && *str) {

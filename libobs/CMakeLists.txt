@@ -88,7 +88,7 @@ target_sources(
 target_sources(
   libobs
   PRIVATE
-    util/array-serializer.c
+    $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:util/array-serializer.c>
     util/array-serializer.h
     util/base.c
     util/base.h
@@ -116,6 +116,7 @@ target_sources(
     util/file-serializer.h
     util/lexer.c
     util/lexer.h
+    $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:util/path-extension.c>
     util/pipe.c
     util/pipe.h
     util/platform.c

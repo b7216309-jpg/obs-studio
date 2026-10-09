@@ -2,21 +2,44 @@ use std::path::PathBuf;
 
 fn main() {
     let manifest = PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap());
-    let libobs = manifest.join("../../libobs").canonicalize().unwrap();
+    // No canonicalize(): on Windows it yields a verbatim `\\?\` path, and
+    // MSVC cannot resolve `#include "util/..."` against such an include dir.
+    // CARGO_MANIFEST_DIR is already absolute.
+    let libobs = manifest
+        .ancestors()
+        .nth(2)
+        .expect("rust/obs-c-oracle has a repo root two levels up")
+        .join("libobs");
 
     cc::Build::new()
         .file("oracle/bitstream.c")
+        .file("oracle/path_extension.c")
+        .file("oracle/array_serializer.c")
+        .file("oracle/darray.c")
         .include(&libobs)
         .std("c11")
         .compile("obs_c_oracle");
 
+    // Test allocator, whole-archive so bmalloc/bfree resolve regardless of
+    // link order relative to obs-util.
+    cc::Build::new()
+        .file("oracle/test_bmem.c")
+        .include(&libobs)
+        .std("c11")
+        .link_lib_modifier("+whole-archive")
+        .compile("obs_c_oracle_bmem");
+
     println!("cargo:rerun-if-changed=oracle");
-    println!(
-        "cargo:rerun-if-changed={}",
-        libobs.join("util/bitstream.c").display()
-    );
-    println!(
-        "cargo:rerun-if-changed={}",
-        libobs.join("util/bitstream.h").display()
-    );
+    for header in [
+        "util/bitstream.c",
+        "util/bitstream.h",
+        "util/path-extension.c",
+        "util/array-serializer.c",
+        "util/array-serializer.h",
+        "util/darray.h",
+        "util/serializer.h",
+        "util/bmem.h",
+    ] {
+        println!("cargo:rerun-if-changed={}", libobs.join(header).display());
+    }
 }

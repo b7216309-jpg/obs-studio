@@ -8,6 +8,8 @@ publish.workspace = true
 
 [lib]
 crate-type = ["staticlib"]
+test = false
+doctest = false
 
 [dependencies]
 obs-util = { path = "../obs-util" }
