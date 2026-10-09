@@ -59,3 +59,15 @@ fn safe_core_does_not_wrap_past_byte_255() {
     }
     assert_eq!(reader.r8(), 0x55);
 }
+
+#[test]
+fn r16_is_big_endian_and_unaligned_safe() {
+    let data = [0xAB, 0xCD, 0xEF];
+    let mut reader = BitstreamReader::new(&data);
+    assert_eq!(reader.r16(), 0xABCD);
+
+    // Starting 4 bits in, r16 spans three bytes: 0xBCDE.
+    let mut reader = BitstreamReader::new(&data);
+    assert_eq!(reader.read_bits(4), 0xA);
+    assert_eq!(reader.r16(), 0xBCDE);
+}
