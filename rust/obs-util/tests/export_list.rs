@@ -42,13 +42,26 @@ fn rust_exports_list_matches_no_mangle_shims() {
         .collect();
 
     let mut found = BTreeSet::new();
-    let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/src/ffi");
-    for entry in fs::read_dir(dir).expect("read src/ffi") {
-        let path = entry.expect("dir entry").path();
-        if path.extension().is_some_and(|e| e == "rs") {
-            let src = fs::read_to_string(&path).expect("read ffi source");
-            found.extend(no_mangle_fns(&src));
+    let mut visited = Vec::new();
+    for krate in fs::read_dir(concat!(env!("CARGO_MANIFEST_DIR"), "/..")).expect("read rust/") {
+        let ffi_dir = krate.expect("dir entry").path().join("src/ffi");
+        if !ffi_dir.is_dir() {
+            continue;
         }
+        for entry in fs::read_dir(&ffi_dir).expect("read src/ffi") {
+            let path = entry.expect("dir entry").path();
+            if path.extension().is_some_and(|e| e == "rs") {
+                let src = fs::read_to_string(&path).expect("read ffi source");
+                found.extend(no_mangle_fns(&src));
+            }
+        }
+        visited.push(ffi_dir);
+    }
+    for krate in ["obs-util", "obs-graphics"] {
+        assert!(
+            visited.iter().any(|d| d.ends_with(format!("{krate}/src/ffi"))),
+            "{krate}/src/ffi was not scanned: {visited:?}"
+        );
     }
 
     let missing_from_list: Vec<_> = found.difference(&listed).collect();
@@ -56,6 +69,6 @@ fn rust_exports_list_matches_no_mangle_shims() {
     assert!(
         missing_from_list.is_empty() && missing_from_src.is_empty(),
         "shims missing from rust-exports.txt: {missing_from_list:?}; \
-         listed but no #[no_mangle] shim in src/ffi: {missing_from_src:?}"
+         listed but no #[no_mangle] shim in rust/*/src/ffi:{missing_from_src:?}"
     );
 }
