@@ -7,3 +7,10 @@
 *.vcxproj.filters text eol=crlf
 
 cmake/ALL_BUILD.vcxproj.user.in text eol=crlf
+
+# Governance files: keep this fork's version when merging from upstream
+# (Constitution of the obs-rust Project). Requires once per clone:
+#   git config merge.ours.driver true
+CONTRIBUTING.md merge=ours
+README.rst merge=ours
+CONSTITUTION.md merge=ours
