@@ -28,6 +28,9 @@ const fn make_table() -> [u32; 256] {
 /// is inverted before and after processing, so passing the result of a
 /// previous call as `crc` continues the checksum; start with `0`.
 pub fn calc_crc32(crc: u32, buf: &[u8]) -> u32 {
-    let _ = (crc, buf, TABLE);
-    todo!()
+    let mut crc = !crc;
+    for &b in buf {
+        crc = TABLE[((crc ^ u32::from(b)) & 0xFF) as usize] ^ (crc >> 8);
+    }
+    !crc
 }
