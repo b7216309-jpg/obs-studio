@@ -9,6 +9,7 @@ scripting APIs) while its internals are rewritten in Rust. Every port follows
 | Path | What |
 |---|---|
 | `obs-util/` | Ports of `libobs/util/*`: safe cores at the crate root, C ABI shims in `src/ffi/` |
+| `obs-graphics/` | Ports of `libobs/graphics/*` |
 | `obs-c-oracle/` | Test-only: original C sources compiled with `oracle_` symbols for layout and differential tests |
 | `libobs-rust/` | The single staticlib linked into libobs when `ENABLE_RUST_LIBOBS=ON` |
 | `tools/linux-validate/` | Docker harness that builds libobs with the Rust ports OFF and ON |
@@ -50,3 +51,4 @@ tests and run them with `ctest`.
 | `libobs/util/array-serializer.c` | `obs-util::array_serializer` | `get_pos` returns `bytes.num`, not `cur_pos`, as in C. `serializer.h` is header-inline (layout test only). |
 | `libobs/util/crc32.c` | `obs-util::crc32` | no intentional differences |
 | `libobs/util/darray.h` (header-inline, not swapped) | `obs-util::darray` | Layout and parity only; the `struct darray` layout is the contract. |
+| `libobs/graphics/vec2.c` | `obs-graphics::vec2` | `vec2_norm` leaves dst unchanged for zero/NaN length, as in C; header-inline helpers stay C |
