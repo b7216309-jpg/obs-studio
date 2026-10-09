@@ -133,12 +133,17 @@ jobs:
 
           print "xcodeCasPath=${xcode_cas_path}" >> $GITHUB_OUTPUT
 
+      # Compiler cache policy (zackees/ci.yml): only master pushes save, keyed by
+      # commit so the cache follows master instead of freezing at its first save.
+      # Master pushes build cold so the saved Xcode CAS holds only what the
+      # current tree uses (the CAS cannot be pruned by age like ccache).
       - uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        id: xcode-cache
+        if: ${{ !(github.event_name == 'push' && github.ref == 'refs/heads/master') }}
         with:
           path: ${{ steps.setup.outputs.xcodeCasPath }}
-          key: ${{ runner.os }}-xcode-${{ matrix.target }}-${{ needs.check-event.outputs.config }}
+          key: ${{ runner.os }}-xcode-${{ matrix.target }}-${{ needs.check-event.outputs.config }}-${{ github.sha }}
           restore-keys: |
+            ${{ runner.os }}-xcode-${{ matrix.target }}-${{ needs.check-event.outputs.config }}-
             ${{ runner.os }}-xcode-${{ matrix.target }}-
 
       - name: Set Up Code Signing 🔑
@@ -202,10 +207,10 @@ jobs:
           path: ${{ github.workspace }}/build_macos/obs-studio-*-macos-${{ steps.setup.outputs.cpuName }}-dSYMs.tar.xz
 
       - uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        if: github.event_name != 'pull_request' && steps.xcode-cache.outputs.cache-hit != 'true'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         with:
           path: ${{ steps.setup.outputs.xcodeCasPath }}
-          key: ${{ runner.os }}-xcode-${{ matrix.target }}-${{ needs.check-event.outputs.config }}
+          key: ${{ runner.os }}-xcode-${{ matrix.target }}-${{ needs.check-event.outputs.config }}-${{ github.sha }}
 
   ubuntu-build:
     name: Ubuntu 🐧
@@ -225,13 +230,19 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
+      # Compiler cache policy (zackees/ci.yml): only master pushes save, keyed by
+      # commit so the cache follows master instead of freezing at its first save.
       - uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        id: ccache-cache
         with:
           path: ${{ github.workspace }}/.ccache
-          key: ${{ runner.os }}-${{ matrix.os }}-ccache-x86_64-${{ needs.check-event.outputs.config }}
+          key: ${{ runner.os }}-${{ matrix.os }}-ccache-x86_64-${{ needs.check-event.outputs.config }}-${{ github.sha }}
           restore-keys: |
+            ${{ runner.os }}-${{ matrix.os }}-ccache-x86_64-${{ needs.check-event.outputs.config }}-
             ${{ runner.os }}-${{ matrix.os }}-ccache-x86_64-
+
+      - name: Record Start Time ⏱️
+        id: start
+        run: echo "epoch=$(date +%s)" >> "${GITHUB_OUTPUT}"
 
       - name: Build OBS Studio 🧱
         uses: ./.github/actions/build-obs
@@ -277,11 +288,19 @@ jobs:
           name: obs-studio-${{ matrix.os }}-x86_64-${{ needs.check-event.outputs.commitHash }}-dbgsym
           path: ${{ github.workspace }}/build_ubuntu/obs-studio-*-x86_64-ubuntu-gnu-dbgsym.ddeb
 
+      # Drop entries this build did not use so the saved cache stays the size
+      # of one build.
+      - name: Prune ccache 🧹
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        run: |
+          ccache --evict-older-than "$(( $(date +%s) - ${{ steps.start.outputs.epoch }} + 60 ))s"
+          ccache --show-stats
+
       - uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        if: github.event_name != 'pull_request' && steps.ccache-cache.outputs.cache-hit != 'true'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         with:
           path: ${{ github.workspace }}/.ccache
-          key: ${{ runner.os }}-${{ matrix.os }}-ccache-x86_64-${{ needs.check-event.outputs.config }}
+          key: ${{ runner.os }}-${{ matrix.os }}-ccache-x86_64-${{ needs.check-event.outputs.config }}-${{ github.sha }}
 
   flatpak-build:
     name: Flatpak 📦
@@ -376,6 +395,22 @@ jobs:
           artifact: manifest
           path: build-aux/com.obsproject.Studio.json
 
+      # flatpak-builder --ccache keeps its compiler cache in
+      # .flatpak-builder/ccache, inside the dependency cache that the action
+      # saves under a manifest-hash key, so that ccache froze at its first
+      # save. Restore a commit-keyed copy of just that directory first; the
+      # action's restore then extracts its snapshot on top (ccache entries are
+      # content-addressed, so the union is safe). Only master pushes save.
+      - uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: .flatpak-builder/ccache
+          key: flatpak-ccache-x86_64-${{ github.sha }}
+          restore-keys: flatpak-ccache-x86_64-
+
+      - name: Record Start Time ⏱️
+        id: start
+        run: echo "epoch=$(date +%s)" >> "${GITHUB_OUTPUT}"
+
       - name: Build Flatpak Manifest 🧾
         uses: flatpak/flatpak-github-actions/flatpak-builder@401fe28a8384095fc1531b9d320b292f0ee45adb # v6.7
         with:
@@ -386,6 +421,38 @@ jobs:
           restore-cache: ${{ fromJSON(steps.setup.outputs.cacheHit) }}
           cache-key: ${{ steps.setup.outputs.cacheKey }}
           mirror-screenshots-url: https://dl.flathub.org/media
+
+      # The SDK's own ccache reads the cache flatpak-builder wrote. On master
+      # pushes it also drops entries this build did not use, so the saved cache
+      # stays the size of one build.
+      - name: Ccache Stats 📊
+        id: ccache-stats
+        continue-on-error: true
+        env:
+          PRUNE: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+        run: |
+          : Ccache Stats 📊
+          ccache_dir="${PWD}/.flatpak-builder/ccache"
+          sdk="org.freedesktop.Sdk//$(sed -n 's/^ *"runtime-version": *"\([^"]*\)".*/\1/p' build-aux/com.obsproject.Studio.json)"
+          run_ccache() {
+            flatpak run --command=ccache --filesystem="${ccache_dir}" --env=CCACHE_DIR="${ccache_dir}" "${sdk}" "$@"
+          }
+          if [[ "${PRUNE}" == true ]]; then
+            run_ccache --evict-older-than "$(( $(date +%s) - ${{ steps.start.outputs.epoch }} + 60 ))s"
+          fi
+          {
+            echo '### Flatpak Ccache Stats'
+            echo '```'
+            run_ccache --show-stats --verbose
+            echo '```'
+          } | tee -a "${GITHUB_STEP_SUMMARY}"
+          du -sh "${ccache_dir}"
+
+      - uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master' && steps.ccache-stats.outcome == 'success'
+        with:
+          path: .flatpak-builder/ccache
+          key: flatpak-ccache-x86_64-${{ github.sha }}
 
       - name: Validate AppStream
         uses: ./.github/actions/flatpak-builder-lint
@@ -429,6 +496,45 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
+      # Compiler cache: ccache masquerading as cl.exe through MSBuild's
+      # CLToolExe (cmake/windows/compilerconfig.cmake, ENABLE_CCACHE in the
+      # windows-ci presets). zccache and sccache cannot serve the Visual Studio
+      # generator: neither runs as a cl.exe stand-in, and zccache 1.15.2 also
+      # refuses every compile that carries /Fd, which CMake always passes.
+      # Policy (zackees/ci.yml): only master pushes save, keyed by commit.
+      - uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ github.workspace }}/.ccache
+          key: windows-ccache-${{ matrix.architecture }}-${{ needs.check-event.outputs.config }}-${{ github.sha }}
+          restore-keys: windows-ccache-${{ matrix.architecture }}-${{ needs.check-event.outputs.config }}-
+
+      - name: Set Up ccache 🗄️
+        id: ccache
+        run: |
+          # Set Up ccache 🗄️
+          $Version = '4.14.1'
+          $Hash = '6219f3865ca59aec41ee4b678df171d5d35855ecb2b6dbbbd20690b3a68af7b4'
+          $Name = "ccache-${Version}-windows-x86_64"
+          $Zip = "${env:RUNNER_TEMP}/${Name}.zip"
+
+          Invoke-WebRequest -Uri "https://github.com/ccache/ccache/releases/download/v${Version}/${Name}.zip" -OutFile $Zip
+          if ( (Get-FileHash -Algorithm SHA256 -Path $Zip).Hash -ne $Hash ) { throw "${Name}.zip checksum mismatch" }
+          Expand-Archive -Path $Zip -DestinationPath $env:RUNNER_TEMP
+
+          $CcacheHome = Join-Path $env:RUNNER_TEMP $Name
+          $env:CCACHE_DIR = Join-Path $env:GITHUB_WORKSPACE '.ccache'
+          $CcacheHome >> $env:GITHUB_PATH
+          @(
+            "CCACHE_DIR=${env:CCACHE_DIR}"
+            'CCACHE_MAXSIZE=2G'
+            'CCACHE_COMPILERCHECK=content'
+            'CCACHE_SLOPPINESS=include_file_mtime,include_file_ctime'
+          ) >> $env:GITHUB_ENV
+
+          & (Join-Path $CcacheHome 'ccache.exe') --version | Select-Object -First 1
+          & (Join-Path $CcacheHome 'ccache.exe') --zero-stats
+          "epoch=$([DateTimeOffset]::UtcNow.ToUnixTimeSeconds())" >> $env:GITHUB_OUTPUT
+
       - name: Build OBS Studio 🧱
         uses: ./.github/actions/build-obs
         env:
@@ -444,6 +550,22 @@ jobs:
         with:
           target: ${{ matrix.architecture }}
           config: ${{ needs.check-event.outputs.config }}
+
+      # Drop entries this build did not use so the saved cache stays the size
+      # of one build.
+      - name: Prune ccache 🧹
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        run: |
+          # Prune ccache 🧹
+          $Age = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds() - ${{ steps.ccache.outputs.epoch }} + 60
+          ccache --evict-older-than "${Age}s"
+          ccache --show-stats
+
+      - uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        with:
+          path: ${{ github.workspace }}/.ccache
+          key: windows-ccache-${{ matrix.architecture }}-${{ needs.check-event.outputs.config }}-${{ github.sha }}
 
       - name: Package OBS Studio 📀
         uses: ./.github/actions/package-obs
