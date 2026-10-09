@@ -591,14 +591,14 @@ bool audio_callback(void *param, uint64_t start_ts_in, uint64_t end_ts_in, uint6
 			if (obs_source_removed(source))
 				continue;
 
-			/* first, add top - level sources as root_nodes */
+			/* first, add top-level sources as root_nodes */
 			if (obs->video.mixes.array[j]->mix_audio)
 				da_push_back(audio->root_nodes, &source);
 
 			/* Build audio tree, tag duplicate individual sources */
 			obs_source_enum_active_tree(source, push_audio_tree2, audio);
 
-			/* add top - level sources to audio tree */
+			/* add top-level sources to audio tree */
 			push_audio_tree(NULL, source, audio);
 		}
 		pthread_mutex_unlock(&view->channels_mutex);
