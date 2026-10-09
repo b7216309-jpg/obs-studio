@@ -4,6 +4,7 @@ pub mod array_serializer;
 pub mod base;
 pub mod bitstream;
 pub mod bmem;
+pub mod cf_tokenizer;
 pub mod crc32;
 pub mod darray;
 pub mod dstr;

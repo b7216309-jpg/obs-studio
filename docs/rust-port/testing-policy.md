@@ -280,7 +280,7 @@ rust/
   tools/tier2-validate/       # macOS/Windows Tier 2 (validate.sh, validate.ps1)
   obs-util/                   # ports of libobs/util/*
     src/bitstream.rs          # safe core (Tier 1 target)
-    src/{path_extension,darray,array_serializer,crc32,utf8,lexer,text_lookup,dstr,bmem}.rs # more safe cores
+    src/{path_extension,darray,array_serializer,crc32,utf8,lexer,text_lookup,dstr,bmem,cf_tokenizer}.rs # more safe cores
     src/ffi/bitstream.rs      # extern "C" shim, #[repr(C)] types (Tier 2)
     src/ffi/*.rs              # matching shims for the cores above
     tests/bitstream.rs        # Tier 1: 1:1 port of test/cmocka/test_bitstream.c
@@ -291,7 +291,7 @@ rust/
   obs-c-oracle/               # dev-only: original C compiled with oracle_ prefix
     build.rs
     oracle/bitstream.c        # #define renames + #include of libobs/util/bitstream.c
-    oracle/{path_extension,array_serializer,darray,crc32,utf8,lexer,text_lookup,dstr,dstr_libc,bmem,test_stubs,platform_conv_host}.c
+    oracle/{path_extension,array_serializer,darray,crc32,utf8,lexer,text_lookup,dstr,dstr_libc,bmem,test_stubs,platform_conv_host,cf_tokenizer}.c
 ```
 
 Port crates are plain `rlib`s. Only `libobs-rust` is a `staticlib`: each

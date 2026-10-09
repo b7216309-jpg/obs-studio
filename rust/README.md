@@ -55,6 +55,7 @@ tests and run them with `ctest`.
 | `libobs/util/array-serializer.c` | `obs-util::array_serializer` | `get_pos` returns `bytes.num`, not `cur_pos`, as in C. `serializer.h` is header-inline (layout test only). |
 | `libobs/util/file-serializer.c` | `obs-util::file_serializer` | A null `path` to `file_output_serializer_init_safe` returns false. C would build a temp name from the extension and `os_unlink(NULL)` on free. On Windows, a failed seek (before the start of the file) keeps the position, where the MSVC CRT reports its read-ahead position. A failed safe save is not logged. |
 | `libobs/util/crc32.c` | `obs-util::crc32` | no intentional differences |
+| `libobs/util/cf-tokenizer.c` (extracted from `cf-lexer.c`) | `obs-util::cf_tokenizer` | Reads NUL where C reads past the terminator (text ending in a line splice inside a comment or string; `\x`/octal escapes skipping past a literal's NUL). A NULL `cf_literal_to_str` literal returns NULL (C dereferences it). The preprocessor in `cf-lexer.c` stays in C. |
 | `libobs/util/darray.h` (header-inline, not swapped) | `obs-util::darray` | Layout and parity only; the `struct darray` layout is the contract. |
 | `libobs/util/utf8.c` | `obs-util::utf8` | Swapped on non-Windows only; Windows keeps the C `MultiByteToWideChar` path. Shims are hidden like the C original (not exported by libobs). |
 | `libobs/util/lexer.c` | `obs-util::lexer` | Header-inline helpers stay C; `cf-lexer.c` and `cf-parser.c` are not ported. Follows the C fix for #48 (an empty strref sorts before a non-empty one in both argument orders). |

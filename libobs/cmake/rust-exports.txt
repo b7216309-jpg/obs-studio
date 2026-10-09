@@ -23,6 +23,10 @@ bmemdup
 bnum_allocs
 brealloc
 calc_crc32
+cf_lexer_free
+cf_lexer_init
+cf_lexer_lex
+cf_literal_to_str
 dstr_cat_dstr
 dstr_cat_strref
 dstr_copy
