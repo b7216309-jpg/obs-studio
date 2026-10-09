@@ -1,0 +1,277 @@
+#include <stdarg.h>
+#include <stddef.h>
+#include <setjmp.h>
+#include <cmocka.h>
+
+#include <string.h>
+
+#include <util/bmem.h>
+#include <util/pipe.h>
+
+static void test_args_create(void **state)
+{
+	UNUSED_PARAMETER(state);
+
+	os_process_args_t *args = os_process_args_create("prog");
+	assert_non_null(args);
+	assert_int_equal(os_process_args_get_argc(args), 1);
+
+	char **argv = os_process_args_get_argv(args);
+	assert_non_null(argv);
+	assert_string_equal(argv[0], "prog");
+	/* argv is NULL-terminated */
+	assert_null(argv[1]);
+
+	os_process_args_destroy(args);
+}
+
+static void test_args_add_arg_order(void **state)
+{
+	UNUSED_PARAMETER(state);
+
+	os_process_args_t *args = os_process_args_create("prog");
+	os_process_args_add_arg(args, "one");
+	os_process_args_add_arg(args, "two");
+	os_process_args_add_arg(args, "three");
+
+	assert_int_equal(os_process_args_get_argc(args), 4);
+
+	char **argv = os_process_args_get_argv(args);
+	assert_string_equal(argv[0], "prog");
+	assert_string_equal(argv[1], "one");
+	assert_string_equal(argv[2], "two");
+	assert_string_equal(argv[3], "three");
+	assert_null(argv[4]);
+
+	os_process_args_destroy(args);
+}
+
+static void test_args_add_argf(void **state)
+{
+	UNUSED_PARAMETER(state);
+
+	os_process_args_t *args = os_process_args_create("prog");
+	os_process_args_add_argf(args, "%d-%s", 42, "abc");
+	os_process_args_add_arg(args, "after");
+
+	assert_int_equal(os_process_args_get_argc(args), 3);
+
+	char **argv = os_process_args_get_argv(args);
+	assert_string_equal(argv[1], "42-abc");
+	assert_string_equal(argv[2], "after");
+	assert_null(argv[3]);
+
+	os_process_args_destroy(args);
+}
+
+static void test_args_verbatim(void **state)
+{
+	UNUSED_PARAMETER(state);
+
+	os_process_args_t *args = os_process_args_create("prog");
+	os_process_args_add_arg(args, "has space");
+	os_process_args_add_arg(args, "say \"hi\" 'there'");
+	os_process_args_add_arg(args, "");
+
+	assert_int_equal(os_process_args_get_argc(args), 4);
+
+	char **argv = os_process_args_get_argv(args);
+	assert_string_equal(argv[1], "has space");
+	assert_string_equal(argv[2], "say \"hi\" 'there'");
+	assert_string_equal(argv[3], "");
+	assert_null(argv[4]);
+
+	os_process_args_destroy(args);
+}
+
+static void test_args_destroy_null(void **state)
+{
+	UNUSED_PARAMETER(state);
+
+	os_process_args_destroy(NULL);
+}
+
+#ifndef _WIN32
+
+/* read until EOF (read returns 0); returns total bytes, buf is NUL-terminated */
+static size_t read_all(os_process_pipe_t *pp, size_t (*reader)(os_process_pipe_t *, uint8_t *, size_t), char *buf,
+		       size_t cap)
+{
+	size_t total = 0;
+
+	for (;;) {
+		if (total + 1 >= cap)
+			break;
+		size_t n = reader(pp, (uint8_t *)buf + total, cap - 1 - total);
+		if (n == 0)
+			break;
+		total += n;
+	}
+	buf[total] = 0;
+	return total;
+}
+
+static void test_pipe_create_read(void **state)
+{
+	UNUSED_PARAMETER(state);
+
+	os_process_pipe_t *pp = os_process_pipe_create("printf 'hello'", "r");
+	assert_non_null(pp);
+
+	char buf[64];
+	size_t n = read_all(pp, os_process_pipe_read, buf, sizeof(buf));
+	assert_int_equal(n, 5);
+	assert_string_equal(buf, "hello");
+
+	assert_int_equal(os_process_pipe_destroy(pp), 0);
+}
+
+static void test_pipe_exit_code(void **state)
+{
+	UNUSED_PARAMETER(state);
+
+	os_process_pipe_t *pp = os_process_pipe_create("exit 3", "r");
+	assert_non_null(pp);
+
+	char buf[16];
+	assert_int_equal(read_all(pp, os_process_pipe_read, buf, sizeof(buf)), 0);
+	assert_int_equal(os_process_pipe_destroy(pp), 3);
+}
+
+static void test_pipe_exit_code_signed_char(void **state)
+{
+	UNUSED_PARAMETER(state);
+
+	/*
+	 * Characterized, not endorsed: the exit status is cast through (char), so
+	 * 255 becomes -1 where char is signed (x86, Apple arm64) and stays 255
+	 * where it is unsigned (Linux aarch64).
+	 */
+	os_process_pipe_t *pp = os_process_pipe_create("exit 255", "r");
+	assert_non_null(pp);
+
+	char buf[16];
+	read_all(pp, os_process_pipe_read, buf, sizeof(buf));
+	assert_int_equal(os_process_pipe_destroy(pp), (int)(char)255);
+}
+
+static void test_pipe_create2_stdout_stderr(void **state)
+{
+	UNUSED_PARAMETER(state);
+
+	os_process_args_t *args = os_process_args_create("/bin/sh");
+	os_process_args_add_arg(args, "-c");
+	os_process_args_add_arg(args, "printf abc; printf err 1>&2");
+
+	os_process_pipe_t *pp = os_process_pipe_create2(args, "r");
+	assert_non_null(pp);
+
+	char buf[64];
+	size_t n = read_all(pp, os_process_pipe_read, buf, sizeof(buf));
+	assert_int_equal(n, 3);
+	assert_string_equal(buf, "abc");
+
+	n = read_all(pp, os_process_pipe_read_err, buf, sizeof(buf));
+	assert_int_equal(n, 3);
+	assert_string_equal(buf, "err");
+
+	assert_int_equal(os_process_pipe_destroy(pp), 0);
+	os_process_args_destroy(args);
+}
+
+static void test_pipe_create2_missing_binary(void **state)
+{
+	UNUSED_PARAMETER(state);
+
+	os_process_args_t *args = os_process_args_create("/nonexistent/obs-test-binary");
+	assert_null(os_process_pipe_create2(args, "r"));
+	os_process_args_destroy(args);
+}
+
+static void test_pipe_write_mode(void **state)
+{
+	UNUSED_PARAMETER(state);
+
+	os_process_pipe_t *pp = os_process_pipe_create("cat > /dev/null", "w");
+	assert_non_null(pp);
+
+	const uint8_t data[] = "some data";
+	assert_int_equal(os_process_pipe_write(pp, data, sizeof(data) - 1), sizeof(data) - 1);
+
+	/* reading from a write pipe yields nothing */
+	uint8_t rb[4];
+	assert_int_equal(os_process_pipe_read(pp, rb, sizeof(rb)), 0);
+
+	assert_int_equal(os_process_pipe_destroy(pp), 0);
+}
+
+static void test_pipe_write_on_read_pipe(void **state)
+{
+	UNUSED_PARAMETER(state);
+
+	os_process_pipe_t *pp = os_process_pipe_create("exit 0", "r");
+	assert_non_null(pp);
+
+	const uint8_t data[] = "x";
+	assert_int_equal(os_process_pipe_write(pp, data, 1), 0);
+
+	assert_int_equal(os_process_pipe_destroy(pp), 0);
+}
+
+static void test_pipe_type_handling(void **state)
+{
+	UNUSED_PARAMETER(state);
+
+	/* only the first character 'r' selects read mode; anything else is write mode */
+	os_process_pipe_t *pp = os_process_pipe_create("cat > /dev/null", "x");
+	assert_non_null(pp);
+
+	const uint8_t data[] = "ab";
+	assert_int_equal(os_process_pipe_write(pp, data, 2), 2);
+	assert_int_equal(os_process_pipe_destroy(pp), 0);
+}
+
+static void test_pipe_null_arguments(void **state)
+{
+	UNUSED_PARAMETER(state);
+
+	assert_null(os_process_pipe_create(NULL, "r"));
+	assert_null(os_process_pipe_create("exit 0", NULL));
+
+	uint8_t b[4];
+	assert_int_equal(os_process_pipe_read(NULL, b, sizeof(b)), 0);
+	assert_int_equal(os_process_pipe_read_err(NULL, b, sizeof(b)), 0);
+	assert_int_equal(os_process_pipe_write(NULL, b, sizeof(b)), 0);
+	assert_int_equal(os_process_pipe_destroy(NULL), 0);
+}
+
+#endif /* !_WIN32 */
+
+/*
+ * Process tests are skipped on Windows: the exact output of pipe-windows.c
+ * (console encoding and line endings) is not pinned here.
+ */
+
+int main(void)
+{
+	const struct CMUnitTest tests[] = {
+		cmocka_unit_test(test_args_create),
+		cmocka_unit_test(test_args_add_arg_order),
+		cmocka_unit_test(test_args_add_argf),
+		cmocka_unit_test(test_args_verbatim),
+		cmocka_unit_test(test_args_destroy_null),
+#ifndef _WIN32
+		cmocka_unit_test(test_pipe_create_read),
+		cmocka_unit_test(test_pipe_exit_code),
+		cmocka_unit_test(test_pipe_exit_code_signed_char),
+		cmocka_unit_test(test_pipe_create2_stdout_stderr),
+		cmocka_unit_test(test_pipe_create2_missing_binary),
+		cmocka_unit_test(test_pipe_write_mode),
+		cmocka_unit_test(test_pipe_write_on_read_pipe),
+		cmocka_unit_test(test_pipe_type_handling),
+		cmocka_unit_test(test_pipe_null_arguments),
+#endif
+	};
+
+	return cmocka_run_group_tests(tests, NULL, NULL);
+}

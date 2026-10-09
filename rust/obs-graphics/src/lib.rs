@@ -1,4 +1,4 @@
-//! Rust ports of `libobs/util`.
+//! Rust ports of `libobs/graphics`.
 //!
 //! Safe cores live at the crate root; the C ABI shims that replace the
 //! original `EXPORT` symbols live in [`ffi`]. See
@@ -7,9 +7,5 @@
 #[cfg(test)]
 use obs_c_oracle as _; // links the test bmalloc/bfree (oracle/test_bmem.c)
 
-pub mod array_serializer;
-pub mod bitstream;
-pub mod crc32;
-pub mod darray;
 pub mod ffi;
-pub mod path_extension;
+pub mod vec2;

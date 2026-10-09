@@ -105,7 +105,7 @@ target_sources(
     util/cf-parser.h
     util/config-file.c
     util/config-file.h
-    util/crc32.c
+    $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:util/crc32.c>
     util/crc32.h
     util/curl/curl-helper.h
     util/darray.h
@@ -218,7 +218,7 @@ target_sources(
     graphics/shader-parser.h
     graphics/srgb.h
     graphics/texture-render.c
-    graphics/vec2.c
+    $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:graphics/vec2.c>
     graphics/vec2.h
     graphics/vec3.c
     graphics/vec3.h

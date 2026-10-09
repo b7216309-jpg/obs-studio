@@ -11,11 +11,22 @@ fn main() {
         .expect("rust/obs-c-oracle has a repo root two levels up")
         .join("libobs");
 
-    cc::Build::new()
+    let mut oracle = cc::Build::new();
+    // Rust never fuses `a * b + c` into an FMA, but GCC/Clang may (clang's
+    // default -ffp-contract=on does so on aarch64), which would make float
+    // oracles such as vec2_norm (`x*x + y*y`) differ in the last bit from the
+    // Rust port. Pin the C oracle to unfused IEEE operations. MSVC does not
+    // contract under its default /fp:precise.
+    if !oracle.get_compiler().is_like_msvc() {
+        oracle.flag("-ffp-contract=off");
+    }
+    oracle
         .file("oracle/bitstream.c")
         .file("oracle/path_extension.c")
         .file("oracle/array_serializer.c")
         .file("oracle/darray.c")
+        .file("oracle/crc32.c")
+        .file("oracle/vec2.c")
         .include(&libobs)
         .std("c11")
         .compile("obs_c_oracle");
@@ -39,6 +50,12 @@ fn main() {
         "util/darray.h",
         "util/serializer.h",
         "util/bmem.h",
+        "util/crc32.c",
+        "util/crc32.h",
+        "graphics/vec2.c",
+        "graphics/vec2.h",
+        "graphics/math-defs.h",
+        "graphics/math-extra.h",
     ] {
         println!("cargo:rerun-if-changed={}", libobs.join(header).display());
     }

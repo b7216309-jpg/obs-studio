@@ -1,4 +1,4 @@
-# Every #[unsafe(no_mangle)] C ABI shim in rust/obs-util/src/ffi/, which must be
+# Every #[unsafe(no_mangle)] C ABI shim in rust/*/src/ffi/, which must be
 # exported from libobs. Enforced by rust/obs-util/tests/export_list.rs.
 # One symbol per line; lines starting with '#' are comments.
 array_output_serializer_free
@@ -8,4 +8,10 @@ bitstream_reader_init
 bitstream_reader_r16
 bitstream_reader_r8
 bitstream_reader_read_bits
+calc_crc32
 os_get_path_extension
+vec2_abs
+vec2_ceil
+vec2_close
+vec2_floor
+vec2_norm
