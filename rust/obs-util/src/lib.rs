@@ -15,3 +15,4 @@ pub mod dstr;
 pub mod ffi;
 pub mod lexer;
 pub mod path_extension;
+pub mod text_lookup;

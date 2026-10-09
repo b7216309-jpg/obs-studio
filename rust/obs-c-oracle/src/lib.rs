@@ -21,6 +21,23 @@ pub mod crc32 {
     }
 }
 
+pub mod text_lookup {
+    //! `util/text-lookup.c`, on the lexer and dstr oracles, with
+    //! `os_fopen`/`os_fread_utf8` from `oracle/test_platform_io.c`.
+    use core::ffi::{c_char, c_void};
+
+    unsafe extern "C" {
+        pub fn oracle_text_lookup_create(path: *const c_char) -> *mut c_void;
+        pub fn oracle_text_lookup_add(lookup: *mut c_void, path: *const c_char) -> bool;
+        pub fn oracle_text_lookup_destroy(lookup: *mut c_void);
+        pub fn oracle_text_lookup_getstr(
+            lookup: *mut c_void,
+            lookup_val: *const c_char,
+            out: *mut *const c_char,
+        ) -> bool;
+    }
+}
+
 pub mod dstr {
     //! `util/dstr.c` (the part that stays after the `dstr-libc.c` split).
     use core::ffi::{c_char, c_int};

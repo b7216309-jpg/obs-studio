@@ -131,7 +131,7 @@ target_sources(
     util/sse-intrin.h
     util/task.c
     util/task.h
-    util/text-lookup.c
+    $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:util/text-lookup.c>
     util/text-lookup.h
     util/threading.h
     util/utf8.c

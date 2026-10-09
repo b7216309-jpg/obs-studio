@@ -33,6 +33,16 @@ fn main() {
         .std("c11")
         .compile("obs_c_oracle");
 
+    // util/text-lookup.c needs <uthash.h>; oracle/include holds a test-only
+    // stand-in, kept to this one build so no other oracle sees it.
+    cc::Build::new()
+        .file("oracle/text_lookup.c")
+        .file("oracle/test_platform_io.c")
+        .include(&libobs)
+        .include(manifest.join("oracle/include"))
+        .std("c11")
+        .compile("obs_c_oracle_text_lookup");
+
     // Test allocator, whole-archive so bmalloc/bfree resolve regardless of
     // link order relative to obs-util.
     cc::Build::new()
@@ -59,6 +69,8 @@ fn main() {
         "util/lexer.h",
         "util/dstr.h",
         "util/dstr.c",
+        "util/text-lookup.c",
+        "util/text-lookup.h",
         "graphics/vec2.c",
         "graphics/vec2.h",
         "graphics/math-defs.h",

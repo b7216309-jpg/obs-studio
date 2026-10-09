@@ -7,3 +7,4 @@ pub mod darray;
 pub mod dstr;
 pub mod lexer;
 pub mod path_extension;
+pub mod text_lookup;
