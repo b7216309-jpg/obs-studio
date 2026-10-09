@@ -447,7 +447,7 @@ static void test_opendir_readdir_closedir(void **state)
 	const char *sorted[3];
 	for (size_t i = 0; i < 3; i++)
 		sorted[i] = names[i];
-	qsort(sorted, 3, sizeof(sorted[0]), cmp_str);
+	qsort((void *)sorted, 3, sizeof(sorted[0]), cmp_str);
 
 	assert_string_equal(sorted[0], "l1.txt");
 	assert_string_equal(sorted[1], "l2.txt");
