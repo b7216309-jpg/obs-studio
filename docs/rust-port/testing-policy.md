@@ -70,6 +70,10 @@ cannot prove both, so every ported unit carries the four tiers below.
   links `obs_c_oracle`: a test file that does not otherwise use it contains
   `use obs_c_oracle as _;`.
 - Delete `test_bmem.c` in the change that ports `util/bmem.c`.
+- Likewise `rust/obs-c-oracle/oracle/test_dstr.c` stands in for the
+  `dstr_catf` the lexer oracle needs, so the oracle does not pull in
+  `util/dstr.c` and its `utf8.c` dependency. Delete it in the change that
+  ports `util/dstr.c`, and link the dstr oracle instead.
 - Windows: Rust `#[no_mangle]` symbols are not dllexport, so every C ABI shim
   symbol is listed in `libobs/cmake/rust-exports.txt`, which
   `libobs/cmake/rust.cmake` turns into `/EXPORT:` linker options.
@@ -243,7 +247,7 @@ rust/
   tools/tier2-validate/       # macOS/Windows Tier 2 (validate.sh, validate.ps1)
   obs-util/                   # ports of libobs/util/*
     src/bitstream.rs          # safe core (Tier 1 target)
-    src/{path_extension,darray,array_serializer,crc32}.rs # more safe cores
+    src/{path_extension,darray,array_serializer,crc32,lexer}.rs # more safe cores
     src/ffi/bitstream.rs      # extern "C" shim, #[repr(C)] types (Tier 2)
     src/ffi/*.rs              # matching shims for the cores above
     tests/bitstream.rs        # Tier 1: 1:1 port of test/cmocka/test_bitstream.c
@@ -252,7 +256,7 @@ rust/
   obs-c-oracle/               # dev-only: original C compiled with oracle_ prefix
     build.rs
     oracle/bitstream.c        # #define renames + #include of libobs/util/bitstream.c
-    oracle/{path_extension,array_serializer,darray,crc32,test_bmem}.c
+    oracle/{path_extension,array_serializer,darray,crc32,lexer,test_bmem,test_dstr}.c
 ```
 
 Port crates are plain `rlib`s. Only `libobs-rust` is a `staticlib`: each

@@ -114,7 +114,7 @@ target_sources(
     util/dstr.h
     util/file-serializer.c
     util/file-serializer.h
-    util/lexer.c
+    $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:util/lexer.c>
     util/lexer.h
     $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:util/path-extension.c>
     util/pipe.c

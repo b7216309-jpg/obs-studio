@@ -6,6 +6,7 @@
  * Deliberately includes no libobs header: bmem.h marks these functions
  * EXPORT/dllexport. */
 #include <stdlib.h>
+#include <string.h>
 
 void *bmalloc(size_t size)
 {
@@ -31,4 +32,14 @@ void *brealloc(void *ptr, size_t size)
 void bfree(void *ptr)
 {
 	free(ptr);
+}
+
+/* bmem.c's bmemdup, for the bstrdup in the lexer oracle. */
+void *bmemdup(const void *ptr, size_t size)
+{
+	void *out = bmalloc(size);
+	if (size)
+		memcpy(out, ptr, size);
+
+	return out;
 }

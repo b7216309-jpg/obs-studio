@@ -12,4 +12,5 @@ pub mod bitstream;
 pub mod crc32;
 pub mod darray;
 pub mod ffi;
+pub mod lexer;
 pub mod path_extension;

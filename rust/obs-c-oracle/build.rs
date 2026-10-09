@@ -17,6 +17,7 @@ fn main() {
         .file("oracle/array_serializer.c")
         .file("oracle/darray.c")
         .file("oracle/crc32.c")
+        .file("oracle/lexer.c")
         .include(&libobs)
         .std("c11")
         .compile("obs_c_oracle");
@@ -25,6 +26,7 @@ fn main() {
     // link order relative to obs-util.
     cc::Build::new()
         .file("oracle/test_bmem.c")
+        .file("oracle/test_dstr.c")
         .include(&libobs)
         .std("c11")
         .link_lib_modifier("+whole-archive")
@@ -42,6 +44,9 @@ fn main() {
         "util/bmem.h",
         "util/crc32.c",
         "util/crc32.h",
+        "util/lexer.c",
+        "util/lexer.h",
+        "util/dstr.h",
     ] {
         println!("cargo:rerun-if-changed={}", libobs.join(header).display());
     }

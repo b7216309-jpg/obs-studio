@@ -49,4 +49,5 @@ tests and run them with `ctest`.
 | `libobs/util/path-extension.c` (extracted from `platform.c`) | `obs-util::path_extension` | NULL `path` returns NULL in Rust (C dereferences it). |
 | `libobs/util/array-serializer.c` | `obs-util::array_serializer` | `get_pos` returns `bytes.num`, not `cur_pos`, as in C. `serializer.h` is header-inline (layout test only). |
 | `libobs/util/crc32.c` | `obs-util::crc32` | no intentional differences |
+| `libobs/util/lexer.c` | `obs-util::lexer` | `lexer_getstroffset` with a NULL `lex->text` leaves the outputs untouched (C dereferences it). `lexer.h` inline helpers stay in C (layout tests only). |
 | `libobs/util/darray.h` (header-inline, not swapped) | `obs-util::darray` | Layout and parity only; the `struct darray` layout is the contract. |
