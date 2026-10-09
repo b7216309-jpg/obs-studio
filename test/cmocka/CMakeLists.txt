@@ -49,6 +49,15 @@ target_link_libraries(test_hotkey_load PRIVATE OBS::libobs OBS::caption ${CMOCKA
 add_dependencies(cmocka-tests test_hotkey_load)
 add_test(test_hotkey_load ${CMAKE_CURRENT_BINARY_DIR}/test_hotkey_load)
 
+# /dev/full reproduces delayed disk-write errors without fault injection.
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  add_executable(test_config_save test_config_save.c)
+  target_include_directories(test_config_save PRIVATE ${CMOCKA_INCLUDE_DIR})
+  target_link_libraries(test_config_save PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
+  add_dependencies(cmocka-tests test_config_save)
+  add_test(test_config_save ${CMAKE_CURRENT_BINARY_DIR}/test_config_save)
+endif()
+
 # AVC header test. Where the toolchain supports it, obs-avc.c is compiled into
 # the test with UBSan (no recovery) so undefined behavior fails the test
 # (obs-rust/obs-studio#11); its definitions take precedence over libobs's.
