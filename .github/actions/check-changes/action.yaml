@@ -39,6 +39,7 @@ runs:
         GITHUB_REF_BEFORE: ${{ github.event.before }}
         USE_FALLBACK: ${{ inputs.useFallback }}
         DIFF_FILTER: ${{ inputs.diffFilter }}
+        DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
       run: |
         : Check for Changed Files ✅
         if [[ "${RUNNER_DEBUG}" ]]; then set -x; fi
@@ -66,7 +67,17 @@ runs:
           case "${GITHUB_EVENT_NAME}" in
             pull_request) GIT_BASE_REF="origin/${GITHUB_BASE_REF}" ;;
             push) if [[ "${GITHUB_EVENT_FORCED}" != 'true' ]]; then GIT_BASE_REF="${GITHUB_REF_BEFORE}"; fi ;;
-            *) ;;
+            *)
+              # workflow_dispatch, schedule, ...: there is no "before" commit and
+              # HEAD~1 covers only the branch's last commit. Compare against the
+              # point where the branch left the default branch instead, so every
+              # commit the branch adds is checked (obs-rust/obs-studio#13).
+              if [[ "${DEFAULT_BRANCH}" ]] \
+                && merge_base="$(git merge-base HEAD "origin/${DEFAULT_BRANCH}" 2> /dev/null)" \
+                && [[ "${merge_base}" != "$(git rev-parse HEAD)" ]]; then
+                GIT_BASE_REF="${merge_base}"
+              fi
+              ;;
           esac
         fi
 
@@ -78,5 +89,5 @@ runs:
           echo "changedFiles=[\"${file_string// /\",\"}\"]" >> $GITHUB_OUTPUT
         else
           echo "hasChangedFiles=false" >> $GITHUB_OUTPUT
-          echo "changedFiles=[]" >> GITHUB_OUTPUT
+          echo "changedFiles=[]" >> $GITHUB_OUTPUT
         fi

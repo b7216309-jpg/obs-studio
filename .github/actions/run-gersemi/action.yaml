@@ -20,15 +20,12 @@ runs:
         echo "::notice::run-gersemi action requires a macOS-based or Linux-based runner."
         exit 2
 
-    - name: Check for Changed Files ✅
-      uses: ./.github/actions/check-changes
-      id: checks
-      with:
-        checkGlob: "'*.cmake' '*CMakeLists.txt'"
-        diffFilter: 'ACM'
-
+    # gersemi checks the whole tree in about a second, so it does not use the
+    # changed-files list: a list computed against the wrong base (feature-branch
+    # PRs, workflow_dispatch) let an unformatted CMake file through before
+    # (obs-rust/obs-studio#13).
     - name: Install Dependencies 🛍️
-      if: runner.os == 'Linux' && fromJSON(steps.checks.outputs.hasChangedFiles)
+      if: runner.os == 'Linux'
       shell: bash
       run: |
         : Install Dependencies 🛍️
@@ -40,12 +37,9 @@ runs:
         echo ::endgroup::
 
     - name: Run gersemi 🎛️
-      if: fromJSON(steps.checks.outputs.hasChangedFiles)
       id: result
       shell: zsh --no-rcs --errexit --pipefail {0}
       working-directory: ${{ github.workspace }}
-      env:
-        CHANGED_FILES: ${{ steps.checks.outputs.changedFiles }}
       run: |
         : Run gersemi 🎛️
         if (( ${+RUNNER_DEBUG} )) setopt XTRACE
@@ -57,6 +51,5 @@ runs:
         print ::endgroup::
 
         print ::group::Run gersemi
-        local -a changes=(${(s:,:)CHANGED_FILES//[\[\]\'\"]/})
-        ./build-aux/run-gersemi --fail-${{ inputs.failCondition }} --check ${changes}
+        ./build-aux/run-gersemi --fail-${{ inputs.failCondition }} --check
         print ::endgroup::
