@@ -170,7 +170,13 @@ static inline uint8_t get_ue_golomb(struct bitstream_reader *gb)
 	while (i < 32 && !bitstream_reader_read_bits(gb, 1))
 		i++;
 
-	return bitstream_reader_read_bits(gb, i) + (1 << i) - 1;
+	/* A valid ue(v) has at most 31 leading zeros. 32 means a malformed or
+	 * truncated SPS (reads past the end return 0); cap it so the shift
+	 * stays defined, and shift an unsigned value so 1 << 31 is too. */
+	if (i > 31)
+		i = 31;
+
+	return (uint8_t)(bitstream_reader_read_bits(gb, i) + (1u << i) - 1u);
 }
 
 static void get_sps_high_params(const uint8_t *sps, size_t size, uint8_t *chroma_format_idc, uint8_t *bit_depth_luma,
