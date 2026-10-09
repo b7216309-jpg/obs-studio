@@ -105,7 +105,7 @@ target_sources(
     util/cf-parser.h
     util/config-file.c
     util/config-file.h
-    util/crc32.c
+    $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:util/crc32.c>
     util/crc32.h
     util/curl/curl-helper.h
     util/darray.h

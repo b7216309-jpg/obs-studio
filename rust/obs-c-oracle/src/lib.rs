@@ -15,6 +15,12 @@ pub mod path_extension {
     }
 }
 
+pub mod crc32 {
+    unsafe extern "C" {
+        pub fn oracle_calc_crc32(crc: u32, buf: *const core::ffi::c_void, size: usize) -> u32;
+    }
+}
+
 pub mod darray {
     use core::ffi::c_void;
 
