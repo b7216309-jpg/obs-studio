@@ -133,7 +133,7 @@ target_sources(
     util/text-lookup.c
     util/text-lookup.h
     util/threading.h
-    util/utf8.c
+    $<$<OR:$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>,$<BOOL:${OS_WINDOWS}>>:util/utf8.c>
     util/utf8.h
     util/uthash.h
     util/util.hpp

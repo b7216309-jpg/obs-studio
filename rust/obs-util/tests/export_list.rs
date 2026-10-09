@@ -27,17 +27,41 @@ fn no_mangle_fns(src: &str) -> Vec<String> {
     out
 }
 
+/// Non-wildcard names in the `local:` section of `rust-exports.map`: shims
+/// for C functions without `EXPORT`, which stay internal to libobs.
+fn hidden_shims(map: &str) -> BTreeSet<String> {
+    let local = map.split("local:").nth(1).expect("local: section");
+    local
+        .split(';')
+        .map(str::trim)
+        .filter(|s| !s.is_empty() && !s.contains('*') && !s.contains('}'))
+        .filter(|s| s.chars().all(|c| c.is_ascii_alphanumeric() || c == '_'))
+        .filter(|s| !s.starts_with("_R") && *s != "rust_eh_personality")
+        .map(String::from)
+        .collect()
+}
+
+fn read(rel: &str) -> String {
+    let path = format!("{}/../../{rel}", env!("CARGO_MANIFEST_DIR"));
+    fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {path}: {e}"))
+}
+
+/// Every `#[no_mangle]` shim is either exported (`rust-exports.txt`) or
+/// explicitly hidden (`rust-exports.map`, and `rust-unexports-macos.txt` with
+/// Mach-O's leading underscore), and never both.
 #[test]
 fn rust_exports_list_matches_no_mangle_shims() {
-    let list = fs::read_to_string(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../libobs/cmake/rust-exports.txt"
-    ))
-    .expect("read rust-exports.txt");
-    let listed: BTreeSet<String> = list
+    let listed: BTreeSet<String> = read("libobs/cmake/rust-exports.txt")
         .lines()
         .map(str::trim)
         .filter(|l| !l.is_empty() && !l.starts_with('#'))
+        .map(String::from)
+        .collect();
+    let hidden = hidden_shims(&read("libobs/cmake/rust-exports.map"));
+    let macos: BTreeSet<String> = read("libobs/cmake/rust-unexports-macos.txt")
+        .lines()
+        .map(str::trim)
+        .filter_map(|l| l.strip_prefix('_'))
         .map(String::from)
         .collect();
 
@@ -51,11 +75,16 @@ fn rust_exports_list_matches_no_mangle_shims() {
         }
     }
 
-    let missing_from_list: Vec<_> = found.difference(&listed).collect();
-    let missing_from_src: Vec<_> = listed.difference(&found).collect();
+    let accounted: BTreeSet<String> = listed.union(&hidden).cloned().collect();
+    let missing_from_lists: Vec<_> = found.difference(&accounted).collect();
+    let missing_from_src: Vec<_> = accounted.difference(&found).collect();
+    let both: Vec<_> = listed.intersection(&hidden).collect();
+    let missing_on_macos: Vec<_> = hidden.difference(&macos).collect();
     assert!(
-        missing_from_list.is_empty() && missing_from_src.is_empty(),
-        "shims missing from rust-exports.txt: {missing_from_list:?}; \
-         listed but no #[no_mangle] shim in src/ffi: {missing_from_src:?}"
+        missing_from_lists.is_empty()
+            && missing_from_src.is_empty()
+            && both.is_empty()
+            && missing_on_macos.is_empty(),
+        "shims in neither rust-exports.txt nor rust-exports.map: {missing_from_lists:?};          listed but no #[no_mangle] shim in src/ffi: {missing_from_src:?};          both exported and hidden: {both:?};          hidden in rust-exports.map but not rust-unexports-macos.txt: {missing_on_macos:?}"
     );
 }

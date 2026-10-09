@@ -13,3 +13,4 @@ pub mod crc32;
 pub mod darray;
 pub mod ffi;
 pub mod path_extension;
+pub mod utf8;

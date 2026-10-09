@@ -135,6 +135,7 @@ dependencies = [
 name = "obs-util"
 version = "0.1.0"
 dependencies = [
+ "libc",
  "obs-c-oracle",
  "proptest",
 ]

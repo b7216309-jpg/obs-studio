@@ -3,6 +3,10 @@
 __ZN*
 __R*
 _rust_eh_personality
+# Shims for C functions without EXPORT; keep in sync with the named local
+# symbols in rust-exports.map.
+_utf8_to_wchar
+_wchar_to_utf8
 # compiler-rt @available helpers (__isOSVersionAtLeast,
 # __isPlatformVersionAtLeast) that Rust's compiler_builtins brings in; the C
 # build does not export them. Wildcards: no error if absent.

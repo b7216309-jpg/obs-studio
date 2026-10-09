@@ -17,6 +17,8 @@ fn main() {
         .file("oracle/array_serializer.c")
         .file("oracle/darray.c")
         .file("oracle/crc32.c")
+        .file("oracle/utf8_s32.c")
+        .file("oracle/utf8_u32.c")
         .include(&libobs)
         .std("c11")
         .compile("obs_c_oracle");
@@ -42,6 +44,8 @@ fn main() {
         "util/bmem.h",
         "util/crc32.c",
         "util/crc32.h",
+        "util/utf8.c",
+        "util/utf8.h",
     ] {
         println!("cargo:rerun-if-changed={}", libobs.join(header).display());
     }

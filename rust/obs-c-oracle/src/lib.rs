@@ -21,6 +21,43 @@ pub mod crc32 {
     }
 }
 
+pub mod utf8 {
+    //! The non-Windows `util/utf8.c` with `wchar_t` as `int32_t` (`s32`) and
+    //! as `uint32_t` (`u32`); see `oracle/utf8_*.c`.
+    use core::ffi::{c_char, c_int};
+
+    unsafe extern "C" {
+        pub fn oracle_s32_utf8_to_wchar(
+            input: *const c_char,
+            insize: usize,
+            out: *mut i32,
+            outsize: usize,
+            flags: c_int,
+        ) -> usize;
+        pub fn oracle_s32_wchar_to_utf8(
+            input: *const i32,
+            insize: usize,
+            out: *mut c_char,
+            outsize: usize,
+            flags: c_int,
+        ) -> usize;
+        pub fn oracle_u32_utf8_to_wchar(
+            input: *const c_char,
+            insize: usize,
+            out: *mut u32,
+            outsize: usize,
+            flags: c_int,
+        ) -> usize;
+        pub fn oracle_u32_wchar_to_utf8(
+            input: *const u32,
+            insize: usize,
+            out: *mut c_char,
+            outsize: usize,
+            flags: c_int,
+        ) -> usize;
+    }
+}
+
 pub mod darray {
     use core::ffi::c_void;
 

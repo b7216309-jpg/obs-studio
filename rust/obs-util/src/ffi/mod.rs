@@ -5,3 +5,5 @@ pub mod bitstream;
 pub mod crc32;
 pub mod darray;
 pub mod path_extension;
+#[cfg(not(windows))]
+pub mod utf8;

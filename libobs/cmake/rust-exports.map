@@ -1,9 +1,15 @@
 /* Keeps Rust std/core internals out of libobs's dynamic symbol table, so
  * ENABLE_RUST_LIBOBS=ON exports exactly what the C build exports. The C ABI
- * shims are #[no_mangle] and stay global. libobs exports no C++ symbols. */
+ * shims are #[no_mangle] and stay global, except the ones listed by name
+ * below: they replace C functions without EXPORT, which libobs's
+ * -fvisibility=hidden keeps internal. rust/obs-util/tests/export_list.rs
+ * checks that every #[no_mangle] shim is either in rust-exports.txt or named
+ * here. libobs exports no C++ symbols. */
 {
   local:
     _ZN*;
     _R*;
     rust_eh_personality;
+    utf8_to_wchar;
+    wchar_to_utf8;
 };
