@@ -506,6 +506,9 @@ jobs:
       # (save-cache: auto), i.e. from master pushes.
       - name: Set Up soldr 🦀
         uses: zackees/setup-soldr@0f223ac68e97fccaaeab026ef1861e5bf73639ac # v0.9.85
+        with:
+          # soldr 0.9.31 embeds zccache 1.15.2 (zackees/zccache#1937).
+          version: 0.9.31
 
       # The lint lane pins clang-format and gersemi through uvx.
       - name: Set Up uv 🐍
@@ -538,6 +541,9 @@ jobs:
       # (save-cache: auto), i.e. from master pushes.
       - name: Set Up soldr 🦀
         uses: zackees/setup-soldr@0f223ac68e97fccaaeab026ef1861e5bf73639ac # v0.9.85
+        with:
+          # soldr 0.9.31 embeds zccache 1.15.2 (zackees/zccache#1937).
+          version: 0.9.31
 
       - name: Run Rust Tests 🧪
         run: soldr cargo test --workspace --locked
@@ -604,9 +610,10 @@ jobs:
       - name: Set Up soldr 🦀
         uses: zackees/setup-soldr@0f223ac68e97fccaaeab026ef1861e5bf73639ac # v0.9.85
         with:
-          # Windows: off until zccache materializes MSVC staticlib outputs
-          # (it looks for liblibobs_rust-*.a instead of the .lib rustc emits).
-          shims: ${{ runner.os == 'macOS' }}
+          # soldr 0.9.31 embeds zccache 1.15.2, which names MSVC staticlib
+          # outputs <crate>-<hash>.lib (zackees/zccache#1937).
+          version: 0.9.31
+          shims: true
 
       - name: Validate Tier 2 on macOS (ENABLE_RUST_LIBOBS OFF vs ON) 🍏
         if: runner.os == 'macOS'
