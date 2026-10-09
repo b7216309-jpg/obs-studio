@@ -2,10 +2,16 @@ project(obs-cmocka)
 
 find_package(CMocka CONFIG REQUIRED)
 
+# Every test executable joins this target, so the Tier 2 validators
+# (rust/tools/*-validate) build `cmocka-tests` instead of a hand-kept list and a
+# new test cannot go unbuilt (and show up in ctest as "Not Run").
+add_custom_target(cmocka-tests)
+
 # Serializer test
 add_executable(test_serializer test_serializer.c)
 target_include_directories(test_serializer PRIVATE ${CMOCKA_INCLUDE_DIR})
 target_link_libraries(test_serializer PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
+add_dependencies(cmocka-tests test_serializer)
 add_test(test_serializer ${CMAKE_CURRENT_BINARY_DIR}/test_serializer)
 
 # darray test
@@ -13,6 +19,7 @@ add_executable(test_darray test_darray.c)
 target_include_directories(test_darray PRIVATE ${CMOCKA_INCLUDE_DIR})
 target_link_libraries(test_darray PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
 
+add_dependencies(cmocka-tests test_darray)
 add_test(test_darray ${CMAKE_CURRENT_BINARY_DIR}/test_darray)
 
 # bitstream test
@@ -20,6 +27,7 @@ add_executable(test_bitstream test_bitstream.c)
 target_include_directories(test_bitstream PRIVATE ${CMOCKA_INCLUDE_DIR})
 target_link_libraries(test_bitstream PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
 
+add_dependencies(cmocka-tests test_bitstream)
 add_test(test_bitstream ${CMAKE_CURRENT_BINARY_DIR}/test_bitstream)
 
 # OS path test
@@ -27,6 +35,7 @@ add_executable(test_os_path test_os_path.c)
 target_include_directories(test_os_path PRIVATE ${CMOCKA_INCLUDE_DIR})
 target_link_libraries(test_os_path PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
 
+add_dependencies(cmocka-tests test_os_path)
 add_test(test_os_path ${CMAKE_CURRENT_BINARY_DIR}/test_os_path)
 
 # AVC header test. Where the toolchain supports it, obs-avc.c is compiled into
@@ -41,6 +50,7 @@ if(NOT MSVC)
   target_link_options(test_avc PRIVATE -fsanitize=undefined)
 endif()
 
+add_dependencies(cmocka-tests test_avc)
 add_test(test_avc ${CMAKE_CURRENT_BINARY_DIR}/test_avc)
 
 # Formatted filename test (obs-rust/obs-studio#21). platform.c is compiled into
@@ -59,5 +69,6 @@ if(NOT MSVC)
   target_compile_options(test_formatted_filename PRIVATE -fsanitize=address,undefined -fno-sanitize-recover=undefined)
   target_link_options(test_formatted_filename PRIVATE -fsanitize=address,undefined)
 
+  add_dependencies(cmocka-tests test_formatted_filename)
   add_test(test_formatted_filename ${CMAKE_CURRENT_BINARY_DIR}/test_formatted_filename)
 endif()
