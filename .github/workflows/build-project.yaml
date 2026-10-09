@@ -500,17 +500,12 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       # Same soldr-wrapped commands as docs/rust-port/testing-policy.md.
-      # setup-soldr installs soldr and the toolchain from rust-toolchain.toml.
+      # setup-soldr provisions the toolchain (with the clippy/rustfmt
+      # components) from rust-toolchain.toml and restores its zccache build
+      # cache and cargo registry; it saves them only outside pull_request
+      # (save-cache: auto), i.e. from master pushes.
       - name: Set Up soldr 🦀
         uses: zackees/setup-soldr@0f223ac68e97fccaaeab026ef1861e5bf73639ac # v0.9.85
-        with:
-          cache: false
-
-      - name: Install Rust Components 🦀
-        run: |
-          soldr rustup toolchain install
-          soldr rustup component add clippy rustfmt
-          soldr rustup show
 
       - name: Run Rust Tests 🧪
         run: soldr cargo test --workspace --locked
@@ -536,17 +531,12 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       # Same soldr-wrapped commands as docs/rust-port/testing-policy.md.
-      # setup-soldr installs soldr and the toolchain from rust-toolchain.toml.
+      # setup-soldr provisions the toolchain (with the clippy/rustfmt
+      # components) from rust-toolchain.toml and restores its zccache build
+      # cache and cargo registry; it saves them only outside pull_request
+      # (save-cache: auto), i.e. from master pushes.
       - name: Set Up soldr 🦀
         uses: zackees/setup-soldr@0f223ac68e97fccaaeab026ef1861e5bf73639ac # v0.9.85
-        with:
-          cache: false
-
-      - name: Install Rust Components 🦀
-        run: |
-          soldr rustup toolchain install
-          soldr rustup component add clippy rustfmt
-          soldr rustup show
 
       - name: Run Rust Tests 🧪
         run: soldr cargo test --workspace --locked
@@ -604,6 +594,13 @@ jobs:
         with:
           submodules: recursive
           fetch-depth: 0
+
+      # The ENABLE_RUST_LIBOBS=ON build runs cargo through Corrosion; the
+      # shims route it through soldr so its compiles hit zccache.
+      - name: Set Up soldr 🦀
+        uses: zackees/setup-soldr@0f223ac68e97fccaaeab026ef1861e5bf73639ac # v0.9.85
+        with:
+          shims: true
 
       - name: Validate Tier 2 on macOS (ENABLE_RUST_LIBOBS OFF vs ON) 🍏
         if: runner.os == 'macOS'
