@@ -11,6 +11,7 @@ scripting APIs) while its internals are rewritten in Rust. Every port follows
 | `obs-util/` | Ports of `libobs/util/*`: safe cores at the crate root, C ABI shims in `src/ffi/` |
 | `obs-c-oracle/` | Test-only: original C sources compiled with `oracle_` symbols for layout and differential tests |
 | `libobs-rust/` | The single staticlib linked into libobs when `ENABLE_RUST_LIBOBS=ON` |
+| `obs-stream-rust/` | Standalone CLI that starts, stops and inspects OBS streaming over obs-websocket v5 (released as `obs-stream-rust` binaries) |
 | `tools/linux-validate/` | Docker harness that builds libobs with the Rust ports OFF and ON |
 | `tools/tier2-validate/` | macOS/Windows Tier 2 (C tests plus exported symbols, OFF vs ON), used by CI |
 
@@ -49,3 +50,25 @@ tests and run them with `ctest`.
 | `libobs/util/path-extension.c` (extracted from `platform.c`) | `obs-util::path_extension` | NULL `path` returns NULL in Rust (C dereferences it). |
 | `libobs/util/array-serializer.c` | `obs-util::array_serializer` | `get_pos` returns `bytes.num`, not `cur_pos`, as in C. `serializer.h` is header-inline (layout test only). |
 | `libobs/util/darray.h` (header-inline, not swapped) | `obs-util::darray` | Layout and parity only; the `struct darray` layout is the contract. |
+
+## obs-stream-rust
+
+`obs-stream-rust` is a small client for a running OBS (Tools → WebSocket
+Server Settings must be enabled):
+
+```sh
+obs-stream-rust status                           # stream: live 00:01:02.345, ...
+obs-stream-rust --password secret start          # or OBS_WEBSOCKET_PASSWORD=secret
+obs-stream-rust --host 192.168.1.5 --port 4455 stop
+obs-stream-rust toggle
+obs-stream-rust version
+```
+
+Release binaries are cross-compiled from Linux with
+[cargo-zigbuild](https://github.com/rust-cross/cargo-zigbuild):
+
+```sh
+for t in x86_64-unknown-linux-musl x86_64-pc-windows-gnu x86_64-apple-darwin aarch64-apple-darwin; do
+  cargo-zigbuild build --release --locked -p obs-stream-rust --target "$t"
+done
+```
