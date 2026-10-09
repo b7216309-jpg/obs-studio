@@ -3,3 +3,7 @@
 __ZN*
 __R*
 _rust_eh_personality
+# compiler-rt @available helpers (__isOSVersionAtLeast,
+# __isPlatformVersionAtLeast) that Rust's compiler_builtins brings in; the C
+# build does not export them. Wildcards: no error if absent.
+___is*VersionAtLeast
