@@ -206,3 +206,14 @@ target_link_libraries(test_platform PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
 
 add_dependencies(cmocka-tests test_platform)
 add_test(test_platform ${CMAKE_CURRENT_BINARY_DIR}/test_platform)
+
+# vec2 test (graphics/vec2.c)
+add_executable(test_vec2 test_vec2.c)
+target_include_directories(test_vec2 PRIVATE ${CMOCKA_INCLUDE_DIR})
+target_link_libraries(test_vec2 PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
+if(NOT MSVC)
+  target_link_libraries(test_vec2 PRIVATE m)
+endif()
+
+add_dependencies(cmocka-tests test_vec2)
+add_test(test_vec2 ${CMAKE_CURRENT_BINARY_DIR}/test_vec2)
