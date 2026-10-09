@@ -59,7 +59,9 @@ fn rust_exports_list_matches_no_mangle_shims() {
     }
     for krate in ["obs-util", "obs-graphics"] {
         assert!(
-            visited.iter().any(|d| d.ends_with(format!("{krate}/src/ffi"))),
+            visited
+                .iter()
+                .any(|d| d.ends_with(format!("{krate}/src/ffi"))),
             "{krate}/src/ffi was not scanned: {visited:?}"
         );
     }
