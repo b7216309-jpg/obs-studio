@@ -34,9 +34,10 @@ if(CMAKE_VERSION VERSION_EQUAL 3.24.0)
   set(THREADS_HAVE_PTHREAD_ARG FALSE)
 endif()
 
-# CMake 3.25 changed the way symbol generation is handled on Windows
+# CMake 3.25 changed the way symbol generation is handled on Windows. Ccache cannot cache objects whose debug
+# information goes to a shared program database (/Zi), so keep it embedded (/Z7) when ccache is in use.
 if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.25.0)
-  if(CMAKE_C_COMPILER_ID STREQUAL "MSVC")
+  if(CMAKE_C_COMPILER_ID STREQUAL "MSVC" AND NOT (ENABLE_CCACHE AND CCACHE_PROGRAM))
     set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT ProgramDatabase)
   else()
     set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT Embedded)

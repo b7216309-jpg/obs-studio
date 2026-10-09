@@ -110,12 +110,30 @@ runs:
           setopt XTRACE
           ccache_data=("${(fA)$(ccache -s -vv)}")
         } else {
-          ccache_data=("${(fA)$(ccache -s)}")
+          ccache_data=("${(fA)$(ccache -s -v)}")
         }
 
         print '### ${{ runner.os }} Ccache Stats (${{ inputs.target }})' >> $GITHUB_STEP_SUMMARY
         print '```' >> $GITHUB_STEP_SUMMARY
         for line (${ccache_data}) {
           print ${line} >> $GITHUB_STEP_SUMMARY
+          print ${line}
         }
         print '```' >> $GITHUB_STEP_SUMMARY
+
+    - name: Create Summary 📊
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        # Create Summary 📊
+        if ( ! ( Get-Command ccache -ErrorAction SilentlyContinue ) ) { return }
+
+        $CcacheData = ccache --show-stats --verbose
+        $CcacheData | Write-Output
+
+        @(
+          '### ${{ runner.os }} Ccache Stats (${{ inputs.target }})'
+          '```'
+          $CcacheData
+          '```'
+        ) | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
