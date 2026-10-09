@@ -12,10 +12,26 @@ corrosion_import_crate(MANIFEST_PATH "${CMAKE_SOURCE_DIR}/Cargo.toml" CRATES lib
 # libobs itself never calls (e.g. bitstream_reader_r16, used by plugins).
 target_link_libraries(libobs PRIVATE "$<LINK_LIBRARY:WHOLE_ARCHIVE,libobs_rust-static>")
 
-# ELF: Rust staticlib internals have default visibility; hide them so libobs
-# exports the same symbol set as the C build.
-# TODO(macOS): equivalent with -unexported_symbols_list once macOS is built.
+# Keep libobs exporting the same symbol set as the C build:
+# - ELF: Rust staticlib internals have default visibility; hide them with a
+#   version script.
+# - Windows: Rust no_mangle symbols in a staticlib are not dllexport, so export
+#   the listed shims explicitly (otherwise obs.dll and its import lib miss them).
+# - macOS: hide Rust internals with ld64 -unexported_symbols_list.
 if(OS_LINUX OR OS_FREEBSD OR OS_OPENBSD)
   target_link_options(libobs PRIVATE "LINKER:--version-script=${CMAKE_CURRENT_SOURCE_DIR}/cmake/rust-exports.map")
   set_property(TARGET libobs APPEND PROPERTY LINK_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/rust-exports.map")
+elseif(OS_WINDOWS)
+  file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/rust-exports.txt" _obs_rust_exports REGEX "^[A-Za-z_]")
+  foreach(sym IN LISTS _obs_rust_exports)
+    target_link_options(libobs PRIVATE "LINKER:/EXPORT:${sym}")
+  endforeach()
+  set_property(TARGET libobs APPEND PROPERTY LINK_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/rust-exports.txt")
+elseif(OS_MACOS)
+  target_link_options(
+    libobs
+    PRIVATE
+      "LINKER:-unexported_symbols_list,${CMAKE_CURRENT_SOURCE_DIR}/cmake/rust-unexports-macos.txt"
+  )
+  set_property(TARGET libobs APPEND PROPERTY LINK_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/rust-unexports-macos.txt")
 endif()

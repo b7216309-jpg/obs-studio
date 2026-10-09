@@ -12,6 +12,7 @@ scripting APIs) while its internals are rewritten in Rust. Every port follows
 | `obs-c-oracle/` | Test-only: original C sources compiled with `oracle_` symbols for layout and differential tests |
 | `libobs-rust/` | The single staticlib linked into libobs when `ENABLE_RUST_LIBOBS=ON` |
 | `tools/linux-validate/` | Docker harness that builds libobs with the Rust ports OFF and ON |
+| `tools/tier2-validate/` | macOS/Windows Tier 2 (C tests plus exported symbols, OFF vs ON), used by CI |
 
 ## Running the tests
 
@@ -22,6 +23,9 @@ soldr cargo fmt --all --check
 rust/tools/linux-validate/run.sh                           # Tier 2: C tests + ABI, OFF vs ON
 ```
 
+CI runs these in `.github/workflows/build-project.yaml` (jobs `rust-tests`,
+`rust-linux-tier2`, `rust-tier2`).
+
 To build OBS itself with the Rust ports, configure with
 `-DENABLE_RUST_LIBOBS=ON`; add `-DENABLE_UNIT_TESTS=ON` to build the cmocka
 tests and run them with `ctest`.
@@ -31,3 +35,6 @@ tests and run them with `ctest`.
 | C source | Rust | Notes |
 |---|---|---|
 | `libobs/util/bitstream.c` | `obs-util::bitstream` | C ABI keeps the `uint8_t pos` wrap past byte 255; the safe API does not wrap |
+| `libobs/util/path-extension.c` (extracted from `platform.c`) | `obs-util::path_extension` | NULL `path` returns NULL in Rust (C dereferences it). |
+| `libobs/util/array-serializer.c` | `obs-util::array_serializer` | `get_pos` returns `bytes.num`, not `cur_pos`, as in C. `serializer.h` is header-inline (layout test only). |
+| `libobs/util/darray.h` (header-inline, not swapped) | `obs-util::darray` | Layout and parity only; the `struct darray` layout is the contract. |

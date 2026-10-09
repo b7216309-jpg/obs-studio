@@ -62,6 +62,27 @@ cannot prove both, so every ported unit carries the four tiers below.
   Paste its summary into the PR.
 - Tests for the C boundary are written in C (they already are). Do not add
   C++ tests for C APIs.
+- Memory that C code later frees or resizes (e.g. darray buffers) MUST be
+  allocated with libobs `bmalloc`/`bfree`, declared once in
+  `rust/obs-util/src/ffi/darray.rs`.
+- Under `cargo test`, those symbols come from the test-only allocator
+  `rust/obs-c-oracle/oracle/test_bmem.c`. Every obs-util test target therefore
+  links `obs_c_oracle`: a test file that does not otherwise use it contains
+  `use obs_c_oracle as _;`.
+- Delete `test_bmem.c` in the change that ports `util/bmem.c`.
+- Windows: Rust `#[no_mangle]` symbols are not dllexport, so every C ABI shim
+  symbol is listed in `libobs/cmake/rust-exports.txt`, which
+  `libobs/cmake/rust.cmake` turns into `/EXPORT:` linker options.
+  `rust/obs-util/tests/export_list.rs` fails if the list and the
+  `#[unsafe(no_mangle)]` functions in `rust/obs-util/src/ffi/` differ.
+- macOS: `libobs/cmake/rust-unexports-macos.txt` hides Rust internals with
+  `-unexported_symbols_list`.
+- CI: `.github/workflows/build-project.yaml` runs the Rust tests on Linux,
+  macOS and Windows (job `rust-tests`). It runs
+  `rust/tools/linux-validate/run.sh` (job `rust-linux-tier2`) and
+  `rust/tools/tier2-validate/validate.sh` / `validate.ps1` on macOS and
+  Windows (job `rust-tier2`). Each OFF/ON pair must export identical symbol
+  sets.
 
 ### Tier 3 — Differential tests against the original C (behavioral parity)
 
@@ -106,6 +127,39 @@ cannot prove both, so every ported unit carries the four tiers below.
 A port is not done until all applicable tiers pass. "Tier 1 passes" alone is
 not done.
 
+## Extracting a function before porting it
+
+If the unit to port is one function inside a larger C file,
+`ENABLE_RUST_LIBOBS` cannot drop it, because the guard drops whole files.
+
+1. First move the function verbatim into its own `.c` file in the same
+   directory.
+2. Use a separate, behavior-neutral commit/PR that contains no Rust and changes
+   no signature, header, or behavior.
+3. Add the new file to `libobs/CMakeLists.txt`.
+4. The unchanged C tests must pass.
+5. Only then port the new file with the normal workflow, and add it to the
+   `$<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:...>` guard.
+
+Example: `os_get_path_extension` moves from `util/platform.c` to
+`util/path-extension.c`.
+
+## Header-inline code (static inline functions and macros)
+
+Code that lives entirely in a public header as `static inline` functions or
+macros is compiled into every caller, so no symbol swap is possible.
+
+- Exemption: Tier 2 for such a unit is (a) a layout test of every public struct
+  it defines (`size_of`, `align_of`, every field offset against the oracle) and
+  (b) the unchanged C tests passing OFF and ON.
+- Do not modify the header.
+- Tier 1 and Tier 3 still apply. The Rust equivalent, which Rust ports use when
+  they manipulate those structs, gets a 1:1 port of the C test plus a
+  differential test. That test runs against oracle wrappers that instantiate
+  the inline functions as non-inline `oracle_*` functions.
+- This currently covers `util/darray.h` (the `struct darray` layout is the
+  contract) and `util/serializer.h` (`struct serializer`).
+
 ## Layout and naming
 
 ```text
@@ -113,18 +167,24 @@ Cargo.toml                    # workspace root, members = ["rust/*"]
 rust-toolchain.toml           # pinned toolchain (required by soldr)
 libobs/cmake/rust.cmake       # Corrosion import + whole-archive link into libobs
 libobs/cmake/rust-exports.map # hides Rust internals from libobs exports (ELF)
+libobs/cmake/rust-exports.txt # C ABI shim symbols to export (Windows /EXPORT:)
+libobs/cmake/rust-unexports-macos.txt # hides Rust internals (macOS)
 rust/
   libobs-rust/                # the ONLY staticlib; re-exports every port's ffi
   tools/linux-validate/       # Docker harness for Tier 2 (not a crate)
+  tools/tier2-validate/       # macOS/Windows Tier 2 (validate.sh, validate.ps1)
   obs-util/                   # ports of libobs/util/*
     src/bitstream.rs          # safe core (Tier 1 target)
+    src/{path_extension,darray,array_serializer}.rs # more safe cores
     src/ffi/bitstream.rs      # extern "C" shim, #[repr(C)] types (Tier 2)
+    src/ffi/*.rs              # matching shims for the cores above
     tests/bitstream.rs        # Tier 1: 1:1 port of test/cmocka/test_bitstream.c
     tests/bitstream_layout.rs # Tier 2: struct layout vs. C header
     tests/bitstream_parity.rs # Tier 3: proptest vs. C oracle
   obs-c-oracle/               # dev-only: original C compiled with oracle_ prefix
     build.rs
     oracle/bitstream.c        # #define renames + #include of libobs/util/bitstream.c
+    oracle/{path_extension,array_serializer,darray,test_bmem}.c
 ```
 
 Port crates are plain `rlib`s. Only `libobs-rust` is a `staticlib`: each
