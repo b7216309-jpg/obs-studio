@@ -3,6 +3,9 @@
 __ZN*
 __R*
 _rust_eh_personality
+_base_begin_crash
+_base_default_log_handler
+_base_log_literal
 # compiler-rt @available helpers (__isOSVersionAtLeast,
 # __isPlatformVersionAtLeast) that Rust's compiler_builtins brings in; the C
 # build does not export them. Wildcards: no error if absent.

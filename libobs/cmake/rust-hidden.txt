@@ -1,0 +1,4 @@
+# #[no_mangle] shims that must not be exported from libobs. Each name is also
+# local: in rust-exports.map and _name in rust-unexports-macos.txt.
+# One symbol per line; lines starting with '#' are comments.
+base_begin_crash

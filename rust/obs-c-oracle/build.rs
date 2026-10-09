@@ -27,6 +27,9 @@ fn main() {
         .file("oracle/darray.c")
         .file("oracle/crc32.c")
         .file("oracle/vec2.c")
+        .file("oracle/base.c")
+        .file("oracle/base_drive.c")
+        .file(libobs.join("util/base-variadic.c"))
         .include(&libobs)
         .std("c11")
         .compile("obs_c_oracle");
@@ -56,6 +59,11 @@ fn main() {
         "graphics/vec2.h",
         "graphics/math-defs.h",
         "graphics/math-extra.h",
+        "util/base.c",
+        "util/base.h",
+        "util/base-variadic.c",
+        "util/c99defs.h",
+        "util/threading.h",
     ] {
         println!("cargo:rerun-if-changed={}", libobs.join(header).display());
     }

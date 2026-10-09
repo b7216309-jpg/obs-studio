@@ -90,7 +90,8 @@ target_sources(
   PRIVATE
     $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:util/array-serializer.c>
     util/array-serializer.h
-    util/base.c
+    $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:util/base.c>
+    $<$<BOOL:${ENABLE_RUST_LIBOBS}>:util/base-variadic.c>
     util/base.h
     $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:util/bitstream.c>
     util/bitstream.h
