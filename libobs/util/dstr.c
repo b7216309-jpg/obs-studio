@@ -606,6 +606,9 @@ void dstr_replace(struct dstr *str, const char *find, const char *replace)
 
 	if (dstr_is_empty(str))
 		return;
+	/* an empty find matches everywhere without advancing */
+	if (!find || !*find)
+		return;
 
 	if (!replace)
 		replace = "";
