@@ -35,18 +35,30 @@ static void literal_to_str_test(void **state)
 	bfree(str);
 
 	/*
-	 * quirk: the remaining-length counter is decremented once per output
-	 * iteration, not once per consumed char, so after an escape sequence the
-	 * closing quote leaks into the result. Characterized, not endorsed.
+	 * escapes: the closing quote is never part of the result. It used to
+	 * leak in after an escape, because the remaining-length counter went
+	 * down once per output char, not per consumed char (#48).
 	 */
 	str = cf_literal_to_str("\"a\\nb\"", 0);
 	assert_non_null(str);
-	assert_string_equal(str, "a\nb\"");
+	assert_string_equal(str, "a\nb");
 	bfree(str);
 
 	str = cf_literal_to_str("\"\\t\"", 0);
 	assert_non_null(str);
-	assert_string_equal(str, "\t\"");
+	assert_string_equal(str, "\t");
+	bfree(str);
+
+	/* an escaped quote right before the closing one is kept */
+	str = cf_literal_to_str("\"a\\\"\"", 0);
+	assert_non_null(str);
+	assert_string_equal(str, "a\"");
+	bfree(str);
+
+	/* text after an explicit count is never read into the result */
+	str = cf_literal_to_str("'\\x41'zz'", 6);
+	assert_non_null(str);
+	assert_string_equal(str, "A");
 	bfree(str);
 
 	/* invalid literals */

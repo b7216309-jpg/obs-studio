@@ -41,6 +41,14 @@ target_link_libraries(test_os_path PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
 add_dependencies(cmocka-tests test_os_path)
 add_test(test_os_path ${CMAKE_CURRENT_BINARY_DIR}/test_os_path)
 
+# Exercise hotkey loading with an isolated core and no platform input thread.
+add_executable(test_hotkey_load test_hotkey_load.c "${CMAKE_SOURCE_DIR}/libobs/obs-hotkey.c")
+target_compile_definitions(test_hotkey_load PRIVATE obs=hotkey_test_obs)
+target_include_directories(test_hotkey_load PRIVATE ${CMOCKA_INCLUDE_DIR})
+target_link_libraries(test_hotkey_load PRIVATE OBS::libobs OBS::caption ${CMOCKA_LIBRARIES})
+add_dependencies(cmocka-tests test_hotkey_load)
+add_test(test_hotkey_load ${CMAKE_CURRENT_BINARY_DIR}/test_hotkey_load)
+
 # AVC header test. Where the toolchain supports it, obs-avc.c is compiled into
 # the test with UBSan (no recovery) so undefined behavior fails the test
 # (obs-rust/obs-studio#11); its definitions take precedence over libobs's.
@@ -104,6 +112,16 @@ target_link_libraries(test_dstr PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
 
 add_dependencies(cmocka-tests test_dstr)
 add_test(test_dstr ${CMAKE_CURRENT_BINARY_DIR}/test_dstr)
+
+# dstr regression tests (obs-rust/obs-studio#46, #47)
+add_executable(test_dstr_regressions test_dstr_regressions.c)
+target_include_directories(test_dstr_regressions PRIVATE ${CMOCKA_INCLUDE_DIR})
+target_link_libraries(test_dstr_regressions PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
+
+add_dependencies(cmocka-tests test_dstr_regressions)
+add_test(test_dstr_regressions ${CMAKE_CURRENT_BINARY_DIR}/test_dstr_regressions)
+# A regression of #47 loops forever: fail fast instead.
+set_tests_properties(test_dstr_regressions PROPERTIES TIMEOUT 60)
 
 # lexer test
 add_executable(test_lexer test_lexer.c)
@@ -206,3 +224,81 @@ target_link_libraries(test_platform PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
 
 add_dependencies(cmocka-tests test_platform)
 add_test(test_platform ${CMAKE_CURRENT_BINARY_DIR}/test_platform)
+
+# vec2 test (graphics/vec2.c)
+add_executable(test_vec2 test_vec2.c)
+target_include_directories(test_vec2 PRIVATE ${CMOCKA_INCLUDE_DIR})
+target_link_libraries(test_vec2 PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
+if(NOT MSVC)
+  target_link_libraries(test_vec2 PRIVATE m)
+endif()
+
+add_dependencies(cmocka-tests test_vec2)
+add_test(test_vec2 ${CMAKE_CURRENT_BINARY_DIR}/test_vec2)
+
+# Exercise AV1 encoder configuration against real FFmpeg options without a
+# running OBS video session, then encode a small synthetic sequence with SVT.
+find_package(FFmpeg 8.0 REQUIRED avcodec avformat avutil)
+add_executable(
+  test_svt_av1
+  test_svt_av1.c
+  "${CMAKE_SOURCE_DIR}/plugins/obs-ffmpeg/obs-ffmpeg-video-encoders.c"
+  "${CMAKE_SOURCE_DIR}/shared/opts-parser/opts-parser.c"
+)
+target_compile_definitions(
+  test_svt_av1
+  PRIVATE
+    obs_encoder_video=svt_test_encoder_video
+    video_output_get_info=svt_test_video_info
+    obs_encoder_get_width=svt_test_encoder_size
+    obs_encoder_get_height=svt_test_encoder_size
+    obs_encoder_get_name=svt_test_encoder_name
+    obs_encoder_set_last_error=svt_test_set_last_error
+)
+target_include_directories(test_svt_av1 PRIVATE ${CMOCKA_INCLUDE_DIR} "${CMAKE_SOURCE_DIR}/shared/opts-parser")
+target_link_libraries(
+  test_svt_av1
+  PRIVATE OBS::libobs FFmpeg::avcodec FFmpeg::avformat FFmpeg::avutil ${CMOCKA_LIBRARIES}
+)
+add_dependencies(cmocka-tests test_svt_av1)
+add_test(test_svt_av1 ${CMAKE_CURRENT_BINARY_DIR}/test_svt_av1)
+set_tests_properties(test_svt_av1 PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 60)
+
+# Decode RTMP server errors through the same authentication-enabled sources
+# as obs-outputs, without starting OBS or connecting to a server.
+if(TARGET OBS::outputs)
+  add_executable(
+    test_rtmp_error
+    test_rtmp_error.c
+    "${CMAKE_SOURCE_DIR}/plugins/obs-outputs/librtmp/rtmp.c"
+    "${CMAKE_SOURCE_DIR}/plugins/obs-outputs/librtmp/amf.c"
+    "${CMAKE_SOURCE_DIR}/plugins/obs-outputs/librtmp/log.c"
+    "${CMAKE_SOURCE_DIR}/plugins/obs-outputs/librtmp/parseurl.c"
+    "${CMAKE_SOURCE_DIR}/plugins/obs-outputs/librtmp/hashswf.c"
+  )
+  target_compile_definitions(test_rtmp_error PRIVATE USE_MBEDTLS CRYPTO)
+  target_compile_options(
+    test_rtmp_error
+    PRIVATE
+      $<$<COMPILE_LANG_AND_ID:C,AppleClang,Clang>:-Wno-comma>
+      $<$<AND:$<PLATFORM_ID:Linux,FreeBSD,OpenBSD>,$<COMPILE_LANG_AND_ID:C,Clang>>:-Wno-error=unreachable-code>
+  )
+  target_include_directories(test_rtmp_error PRIVATE ${CMOCKA_INCLUDE_DIR} "${CMAKE_SOURCE_DIR}/plugins/obs-outputs")
+  target_link_libraries(
+    test_rtmp_error
+    PRIVATE
+      OBS::libobs
+      OBS::happy-eyeballs
+      MbedTLS::mbedtls
+      ZLIB::ZLIB
+      ${CMOCKA_LIBRARIES}
+      $<$<PLATFORM_ID:Windows>:crypt32>
+      $<$<PLATFORM_ID:Windows>:iphlpapi>
+      $<$<PLATFORM_ID:Windows>:winmm>
+      $<$<PLATFORM_ID:Windows>:ws2_32>
+      "$<$<PLATFORM_ID:Darwin>:$<LINK_LIBRARY:FRAMEWORK,Foundation.framework>>"
+      "$<$<PLATFORM_ID:Darwin>:$<LINK_LIBRARY:FRAMEWORK,Security.framework>>"
+  )
+  add_dependencies(cmocka-tests test_rtmp_error)
+  add_test(test_rtmp_error ${CMAKE_CURRENT_BINARY_DIR}/test_rtmp_error)
+endif()

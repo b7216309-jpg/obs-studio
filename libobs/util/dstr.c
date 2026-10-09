@@ -501,7 +501,8 @@ void dstr_insert_ch(struct dstr *dst, const size_t idx, const char ch)
 	}
 
 	dstr_ensure_capacity(dst, (++dst->len + 1));
-	memmove(dst->array + idx + 1, dst->array + idx, dst->len - idx + 1);
+	/* move the old tail and its NUL: (len - 1) - idx + 1 bytes */
+	memmove(dst->array + idx + 1, dst->array + idx, dst->len - idx);
 	dst->array[idx] = ch;
 }
 
@@ -604,6 +605,9 @@ void dstr_replace(struct dstr *str, const char *find, const char *replace)
 	char *temp;
 
 	if (dstr_is_empty(str))
+		return;
+	/* an empty find matches everywhere without advancing */
+	if (!find || !*find)
 		return;
 
 	if (!replace)

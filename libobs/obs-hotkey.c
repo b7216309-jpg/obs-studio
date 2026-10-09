@@ -457,6 +457,10 @@ static inline void load_modifier(uint32_t *modifiers, obs_data_t *data, const ch
 
 static inline void create_binding(obs_hotkey_t *hotkey, obs_key_combination_t combo)
 {
+	/* Match the frontend: primary mouse buttons are reserved for UI interaction. */
+	if (combo.key == OBS_KEY_MOUSE1 || combo.key == OBS_KEY_MOUSE2)
+		return;
+
 	obs_hotkey_binding_t *binding = da_push_back_new(obs->hotkeys.bindings);
 	if (!binding)
 		return;

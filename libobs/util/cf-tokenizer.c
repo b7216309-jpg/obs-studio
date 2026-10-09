@@ -86,7 +86,7 @@ static inline void cf_convert_from_escape_literal(char **p_dst, const char **p_s
 
 char *cf_literal_to_str(const char *literal, size_t count)
 {
-	const char *temp_src;
+	const char *temp_src, *end;
 	char *str, *temp_dst;
 
 	if (!count)
@@ -102,9 +102,12 @@ char *cf_literal_to_str(const char *literal, size_t count)
 	/* strip leading and trailing quote characters */
 	str = bzalloc(--count);
 	temp_src = literal + 1;
+	end = literal + count; /* the closing quote */
 	temp_dst = str;
 
-	while (*temp_src && --count > 0) {
+	/* An escape consumes several chars but writes at most one, so the
+	 * result always fits in count bytes. */
+	while (*temp_src && temp_src < end) {
 		if (*temp_src == '\\') {
 			temp_src++;
 			cf_convert_from_escape_literal(&temp_dst, &temp_src);

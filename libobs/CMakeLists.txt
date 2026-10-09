@@ -219,7 +219,7 @@ target_sources(
     graphics/shader-parser.h
     graphics/srgb.h
     graphics/texture-render.c
-    graphics/vec2.c
+    $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:graphics/vec2.c>
     graphics/vec2.h
     graphics/vec3.c
     graphics/vec3.h
