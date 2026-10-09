@@ -42,3 +42,22 @@ if(NOT MSVC)
 endif()
 
 add_test(test_avc ${CMAKE_CURRENT_BINARY_DIR}/test_avc)
+
+# Formatted filename test (obs-rust/obs-studio#21). platform.c is compiled into
+# the test so the test's obs_get_video_info fixture replaces libobs's and no obs
+# core has to be started; its definitions take precedence over libobs's. utf8.c
+# is not exported by libobs, and platform.c needs it.
+if(NOT MSVC)
+  add_executable(
+    test_formatted_filename
+    test_formatted_filename.c
+    "${CMAKE_SOURCE_DIR}/libobs/util/platform.c"
+    "${CMAKE_SOURCE_DIR}/libobs/util/utf8.c"
+  )
+  target_include_directories(test_formatted_filename PRIVATE ${CMOCKA_INCLUDE_DIR})
+  target_link_libraries(test_formatted_filename PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
+  target_compile_options(test_formatted_filename PRIVATE -fsanitize=address,undefined -fno-sanitize-recover=undefined)
+  target_link_options(test_formatted_filename PRIVATE -fsanitize=address,undefined)
+
+  add_test(test_formatted_filename ${CMAKE_CURRENT_BINARY_DIR}/test_formatted_filename)
+endif()
