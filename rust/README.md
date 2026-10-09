@@ -21,7 +21,7 @@ The fastest path is the local gate, which runs the same checks as CI's Linux job
 ```sh
 ./lint          # clang-format, gersemi, rustfmt, clippy (~8 s)
 ./unittest      # Rust Tiers 1-3, then Tier 2 in Docker (~40 s warm)
-uvx --from git+https://github.com/zackees/ci.yml@70e8fefe414840ec786a24b71c82c55731e4f8cc ci-lint local-gate run
+uvx --from git+https://github.com/zackees/ci.yml@1a970f01574447d681571ff3d0b8de56cb983dcc ci-lint local-gate run
 ```
 
 The last command stamps the commit, so CI skips the Linux Rust test and Tier 2 jobs for that PR.
