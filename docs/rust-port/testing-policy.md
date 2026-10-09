@@ -79,7 +79,7 @@ cannot prove both, so every ported unit carries the four tiers below.
   symbol is listed in `libobs/cmake/rust-exports.txt`, which
   `libobs/cmake/rust.cmake` turns into `/EXPORT:` linker options.
   `rust/obs-util/tests/export_list.rs` fails if the list and the
-  `#[unsafe(no_mangle)]` functions in `rust/obs-util/src/ffi/` differ.
+  `#[unsafe(no_mangle)]` functions in `rust/*/src/ffi/` differ.
 - macOS: `libobs/cmake/rust-unexports-macos.txt` hides Rust internals with
   `-unexported_symbols_list`.
 - CI: `.github/workflows/build-project.yaml` runs the Rust tests on Linux,
@@ -215,6 +215,27 @@ Tier 2 checks.
 - Per-OS files are ported per OS. A port is done only when that OS's Tier 2
   passes in CI.
 
+### Port order and rules for Phase 5 (beyond util)
+
+1. Graphics math in crate `obs-graphics`: `vec2.c`, then `vec3.c`, `vec4.c`,
+   `quat.c`, `matrix3.c`, `matrix4.c`, `plane.c`, `bounds.c`, `axisang.c`,
+   `math-extra.c`.
+2. `media-io` in crate `obs-media-io`.
+3. obs-websocket Tier 4 suite, then the port.
+
+- Tier 3 parity is exact bit equality (NaN == NaN) where the C is scalar and
+  deterministic. Only where the C uses SIMD (`vec3`, `vec4`, `matrix4` via
+  SIMDe) is a per-function ULP tolerance allowed; document it in the parity
+  test file.
+- The bitstream parsers (`obs-avc.c`, `obs-hevc.c`, `obs-av1.c`) get
+  cargo-fuzz differential targets against the C oracle. Each runs at least 1
+  hour with no mismatch outside documented exclusions.
+- Inputs that trigger C UB are excluded and listed. The `get_ue_golomb` UB is
+  already fixed in C (#11, #17).
+- obs-websocket gets a Tier 4 black-box suite covering every v5 request type,
+  events, the auth handshake and error codes. It MUST pass against the current
+  C++ server before any port.
+
 ## Header-inline code (static inline functions and macros)
 
 Code that lives entirely in a public header as `static inline` functions or
@@ -254,6 +275,7 @@ rust/
     tests/bitstream.rs        # Tier 1: 1:1 port of test/cmocka/test_bitstream.c
     tests/bitstream_layout.rs # Tier 2: struct layout vs. C header
     tests/bitstream_parity.rs # Tier 3: proptest vs. C oracle
+  obs-graphics/               # ports of libobs/graphics/*
   obs-c-oracle/               # dev-only: original C compiled with oracle_ prefix
     build.rs
     oracle/bitstream.c        # #define renames + #include of libobs/util/bitstream.c
