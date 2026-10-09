@@ -56,11 +56,33 @@ const EDGE_CODES: &[u32] = &[
     0xffff_ffff,
 ];
 
+/// Any lead byte followed by 0 to 6 continuation bytes: well-formed,
+/// truncated, overlong, out-of-range and forbidden sequences alike.
+fn sequence() -> impl Strategy<Value = Vec<u8>> {
+    (any::<u8>(), prop::collection::vec(0x80u8..=0xbf, 0..=6)).prop_map(|(lead, mut rest)| {
+        rest.insert(0, lead);
+        rest
+    })
+}
+
+/// Mostly well-formed text with some invalid sequences mixed in, so errors
+/// do not always end the comparison at the first byte.
+fn mixed_text() -> impl Strategy<Value = Vec<u8>> {
+    let token = prop_oneof![
+        4 => any::<char>().prop_map(|c| c.to_string().into_bytes()),
+        2 => sequence(),
+        1 => prop::sample::select(EDGE_BYTES).prop_map(|b| vec![b]),
+    ];
+    prop::collection::vec(token, 0..24).prop_map(|t| t.concat())
+}
+
 fn utf8_input() -> impl Strategy<Value = Vec<u8>> {
     prop_oneof![
-        prop::collection::vec(any::<u8>(), 0..64),
-        prop::collection::vec(prop::sample::select(EDGE_BYTES), 0..64),
-        any::<String>().prop_map(String::into_bytes),
+        1 => prop::collection::vec(any::<u8>(), 0..64),
+        1 => prop::collection::vec(prop::sample::select(EDGE_BYTES), 0..64),
+        1 => any::<String>().prop_map(String::into_bytes),
+        3 => sequence(),
+        3 => mixed_text(),
     ]
 }
 
