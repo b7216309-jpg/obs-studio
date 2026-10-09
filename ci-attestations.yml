@@ -2,14 +2,14 @@
 # otherwise verify remotely, named <ecosystem>/<platform>/<check>; `lane` is
 # the local-gate.toml lane whose pass proves it. `jobs` maps each remote job
 # to the gates it runs: an attested PR head skips a job only when every gate
-# it lists is attested and the head passes [gate.trust]. C/C++ gates use
-# `general/` until ci.yml has a `cpp` ecosystem (zackees/ci.yml#393).
+# it lists is attested and the head passes [gate.trust]. C/C++ gates are
+# cpp/<platform>/<check> (zackees/ci.yml docs/policy-cpp.md, #393).
 version: 1
 gates:
   rust/all/fmt: {lane: lint}
   rust/x86_64-unknown-linux-gnu/clippy: {lane: lint}
   rust/x86_64-unknown-linux-gnu/test: {lane: rust-test}
-  general/linux-x64/tier2: {lane: tier2-linux}
+  cpp/linux-x64/tier2: {lane: tier2-linux}
 jobs:
   build-project.yaml:rust-tests-linux: [rust/all/fmt, rust/x86_64-unknown-linux-gnu/clippy, rust/x86_64-unknown-linux-gnu/test]
-  build-project.yaml:rust-linux-tier2: [general/linux-x64/tier2]
+  build-project.yaml:rust-linux-tier2: [cpp/linux-x64/tier2]
