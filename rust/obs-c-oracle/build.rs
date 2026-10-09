@@ -30,6 +30,9 @@ fn main() {
         .file("oracle/base.c")
         .file("oracle/base_drive.c")
         .file(libobs.join("util/base-variadic.c"))
+        .file("oracle/file_serializer.c")
+        .file("oracle/file_serializer_host.c")
+        .file(libobs.join("util/dstr.c"))
         .include(&libobs)
         .std("c11");
     // base.c includes util/threading.h, which includes <pthread.h>. MSVC has
@@ -70,6 +73,11 @@ fn main() {
         "util/base-variadic.c",
         "util/c99defs.h",
         "util/threading.h",
+        "util/file-serializer.c",
+        "util/file-serializer.h",
+        "util/dstr.c",
+        "util/dstr.h",
+        "util/platform.h",
     ] {
         println!("cargo:rerun-if-changed={}", libobs.join(header).display());
     }
