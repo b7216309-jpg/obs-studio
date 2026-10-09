@@ -772,9 +772,10 @@ char *os_generate_formatted_filename(const char *extension, bool space, const ch
 
 	if (sf.len > 255) {
 		/* Back up to a UTF-8 character boundary so a multibyte character
-		   is not split by the 255-byte limit */
+		   is not split by the 255-byte limit. A character has at most
+		   three continuation bytes, so invalid input stops at 252. */
 		size_t len = 255;
-		while (len > 0 && ((unsigned char)sf.array[len] & 0xC0) == 0x80)
+		while (len > 252 && ((unsigned char)sf.array[len] & 0xC0) == 0x80)
 			len--;
 		dstr_mid(&sf, &sf, 0, len);
 	}

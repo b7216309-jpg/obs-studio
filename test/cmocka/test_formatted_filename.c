@@ -134,6 +134,25 @@ static void ascii_truncation_unchanged_test(void **state)
 	dstr_free(&fmt);
 }
 
+/* Invalid input made only of continuation bytes must not back up past one
+ * character's worth of bytes (or to an empty, NULL result). */
+static void invalid_continuation_bytes_test(void **state)
+{
+	UNUSED_PARAMETER(state);
+
+	struct dstr fmt = {0};
+	dstr_cat_ch(&fmt, 'a');
+	for (int i = 0; i < 300; i++)
+		dstr_cat_ch(&fmt, (char)0x80);
+
+	char *name = os_generate_formatted_filename(NULL, true, fmt.array);
+	assert_non_null(name);
+	assert_int_equal(strlen(name), 252);
+
+	bfree(name);
+	dstr_free(&fmt);
+}
+
 static void short_name_unchanged_test(void **state)
 {
 	UNUSED_PARAMETER(state);
@@ -146,9 +165,8 @@ static void short_name_unchanged_test(void **state)
 int main()
 {
 	const struct CMUnitTest tests[] = {
-		cmocka_unit_test(zero_width_space_report_test),
-		cmocka_unit_test(every_interior_cut_test),
-		cmocka_unit_test(ascii_truncation_unchanged_test),
+		cmocka_unit_test(zero_width_space_report_test),    cmocka_unit_test(every_interior_cut_test),
+		cmocka_unit_test(ascii_truncation_unchanged_test), cmocka_unit_test(invalid_continuation_bytes_test),
 		cmocka_unit_test(short_name_unchanged_test),
 	};
 
