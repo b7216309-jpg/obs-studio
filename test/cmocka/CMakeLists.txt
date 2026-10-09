@@ -41,6 +41,14 @@ target_link_libraries(test_os_path PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
 add_dependencies(cmocka-tests test_os_path)
 add_test(test_os_path ${CMAKE_CURRENT_BINARY_DIR}/test_os_path)
 
+# Exercise hotkey loading with an isolated core and no platform input thread.
+add_executable(test_hotkey_load test_hotkey_load.c "${CMAKE_SOURCE_DIR}/libobs/obs-hotkey.c")
+target_compile_definitions(test_hotkey_load PRIVATE obs=hotkey_test_obs)
+target_include_directories(test_hotkey_load PRIVATE ${CMOCKA_INCLUDE_DIR})
+target_link_libraries(test_hotkey_load PRIVATE OBS::libobs OBS::caption ${CMOCKA_LIBRARIES})
+add_dependencies(cmocka-tests test_hotkey_load)
+add_test(test_hotkey_load ${CMAKE_CURRENT_BINARY_DIR}/test_hotkey_load)
+
 # AVC header test. Where the toolchain supports it, obs-avc.c is compiled into
 # the test with UBSan (no recovery) so undefined behavior fails the test
 # (obs-rust/obs-studio#11); its definitions take precedence over libobs's.
