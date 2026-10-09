@@ -7,6 +7,13 @@ repo=$(cd "$here/../../.." && pwd)
 # resolve only on the host, so `git describe` fails inside the container.
 # Resolve the OBS version here instead and hand it to validate.sh.
 env=()
+# The same goes for submodules: the container cannot initialize them from a
+# worktree (obs-rust/obs-studio#32), so initialize any empty one here.
+for sub in plugins/obs-browser plugins/obs-websocket; do
+  if [ -z "$(ls -A "$repo/$sub" 2>/dev/null)" ]; then
+    git -C "$repo" submodule update --init --depth 1 "$sub"
+  fi
+done
 if [ -f "$repo/.git" ]; then
   env=(-e "OBS_VERSION_OVERRIDE=$(git -C "$repo" describe --always --tags)")
 fi
