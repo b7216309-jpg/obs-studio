@@ -56,6 +56,12 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   target_link_libraries(test_config_save PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
   add_dependencies(cmocka-tests test_config_save)
   add_test(test_config_save ${CMAKE_CURRENT_BINARY_DIR}/test_config_save)
+
+  add_executable(test_file_serializer_safe test_file_serializer_safe.c)
+  target_include_directories(test_file_serializer_safe PRIVATE ${CMOCKA_INCLUDE_DIR})
+  target_link_libraries(test_file_serializer_safe PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
+  add_dependencies(cmocka-tests test_file_serializer_safe)
+  add_test(test_file_serializer_safe ${CMAKE_CURRENT_BINARY_DIR}/test_file_serializer_safe)
 endif()
 
 # AVC header test. Where the toolchain supports it, obs-avc.c is compiled into
