@@ -1,5 +1,7 @@
 # Agent instructions
 
+This repository is governed by the [Constitution of the obs-rust Project](https://github.com/obs-rust/constitution/blob/main/CONSTITUTION.md), which supersedes every other document here, this one included.
+
 This repository is being converted from C/C++ to Rust while keeping the public
 API (libobs C API/ABI, obs-websocket v5 protocol, frontend and scripting APIs)
 compatible.
