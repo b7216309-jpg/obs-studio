@@ -1,0 +1,8 @@
+# zackees/ci.yml GATE-012: CodeRabbit is a remote-only GitHub App; it must never
+# gate a PR or post a blocking status.
+reviews:
+  auto_review:
+    enabled: false
+  commit_status: false
+  fail_commit_status: false
+  request_changes_workflow: false

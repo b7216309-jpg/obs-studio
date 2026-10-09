@@ -41,6 +41,14 @@
 !Cargo.toml
 !rust-toolchain.toml
 
+# Local gate (zackees/ci.yml)
+!/ci
+!.coderabbit.yaml
+!ci-attestations.yml
+!lint
+!local-gate.toml
+!unittest
+
 # Exclude lock files
 *.lock.json
 

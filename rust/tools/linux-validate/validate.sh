@@ -16,12 +16,22 @@ for sub in plugins/obs-browser plugins/obs-websocket; do
   fi
 done
 
+# Compiler cache: keeps cold builds (a fresh clone or another worktree, whose
+# mtimes differ, or a CI runner) from recompiling OBS. CCACHE_DIR defaults to
+# the build volume; run.sh points it at a host dir when OBS_CCACHE_DIR is set
+# (CI restores and saves that dir with actions/cache).
+export CCACHE_DIR="${CCACHE_DIR:-/build/ccache}"
+export CCACHE_BASEDIR=/src CCACHE_COMPRESS=1 CCACHE_MAXSIZE="${CCACHE_MAXSIZE:-2G}"
+export CCACHE_SLOPPINESS=time_macros,include_file_mtime,include_file_ctime
+ccache -z >/dev/null
+
 for mode in OFF ON; do
   build="/build/rust-$mode"
   echo "== [$mode] configure + build"
   cmake -S /src -B "$build" -G Ninja \
     -DCMAKE_BUILD_TYPE=RelWithDebInfo \
     -DENABLE_UNIT_TESTS=ON \
+    -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
     -DENABLE_RUST_LIBOBS="$mode" \
     -DENABLE_FRONTEND=OFF -DENABLE_SCRIPTING=OFF -DENABLE_BROWSER=OFF \
     -DENABLE_WEBSOCKET=OFF -DENABLE_AJA=OFF -DENABLE_WEBRTC=OFF \
@@ -60,3 +70,6 @@ done
 echo "== libobs exported symbols, OFF vs ON"
 diff /build/exports-OFF.txt /build/exports-ON.txt
 echo "IDENTICAL ($(wc -l </build/exports-ON.txt) symbols)"
+
+echo "== ccache"
+ccache -s | grep -E "Hits|Misses|Cache size" || true

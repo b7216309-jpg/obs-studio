@@ -5,7 +5,8 @@ on:
   pull_request:
     paths-ignore:
       - '**.md'
-    branches: [master]
+    # grind/** : goal PRs land on a grind feature branch before master.
+    branches: [master, 'grind/**']
     types: [ opened, synchronize, reopened ]
 permissions:
   contents: read

@@ -14,6 +14,7 @@ jobs:
       notarize: ${{ steps.setup.outputs.notarize }}
       config: ${{ steps.setup.outputs.config }}
       commitHash: ${{ steps.setup.outputs.commitHash }}
+      native: ${{ steps.native.outputs.native }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -57,10 +58,39 @@ jobs:
           done
           echo "commitHash=${GITHUB_SHA:0:9}" >> $GITHUB_OUTPUT
 
+      # Quick gate: the full OBS builds below (ENABLE_RUST_LIBOBS and
+      # ENABLE_UNIT_TESTS default OFF) cannot be affected by a PR that only
+      # touches the Rust workspace, the C unit tests, the local gate, or docs,
+      # so those PRs skip them. Pushes, workflow edits, any other path, and the
+      # `ci-full` label always run them. Lint and unit tests always run.
+      - name: Check for Native Changes 🧭
+        id: native
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          : Check for Native Changes 🧭
+          native=true
+          if [[ "${GITHUB_EVENT_NAME}" == pull_request ]] \
+            && ! gh pr view ${{ github.event.number }} --json labels | jq -e '.labels[] | select(.name == "ci-full")' > /dev/null; then
+            native=false
+            while IFS= read -r file; do
+              case "${file}" in
+                rust/*|Cargo.toml|Cargo.lock|rust-toolchain.toml) ;;
+                libobs/cmake/rust*|test/cmocka/*) ;;
+                ci/*|lint|unittest|local-gate.toml|ci-attestations.yml) ;;
+                docs/*|*.md) ;;
+                *) native=true; echo "native change: ${file}"; break ;;
+              esac
+            done < <(git diff --name-only "origin/${GITHUB_BASE_REF}...HEAD")
+          fi
+          echo "native=${native}" >> "${GITHUB_OUTPUT}"
+          echo "Full OBS builds: ${native}"
+
   macos-build:
     name: macOS 🍏
     runs-on: macos-26
     needs: check-event
+    if: fromJSON(needs.check-event.outputs.native)
     strategy:
       fail-fast: false
       matrix:
@@ -185,6 +215,7 @@ jobs:
         os: [ubuntu-26.04]
     runs-on: ${{ matrix.os }}
     needs: check-event
+    if: fromJSON(needs.check-event.outputs.native)
     defaults:
       run:
         shell: bash
@@ -256,6 +287,7 @@ jobs:
     name: Flatpak 📦
     runs-on: ubuntu-26.04
     needs: check-event
+    if: fromJSON(needs.check-event.outputs.native)
     defaults:
       run:
         shell: bash
@@ -387,6 +419,7 @@ jobs:
         architecture: [x64, arm64]
     runs-on: windows-2025-vs2026
     needs: check-event
+    if: fromJSON(needs.check-event.outputs.native)
     defaults:
       run:
         shell: pwsh
@@ -427,12 +460,73 @@ jobs:
           name: obs-studio-windows-${{ matrix.architecture }}-${{ needs.check-event.outputs.commitHash }}
           path: ${{ github.workspace }}/build_${{ matrix.architecture }}/obs-studio-*-windows-${{ matrix.architecture }}.zip
 
+  # zackees/ci.yml GATE-008/010: an attested, in-policy PR head (local-gate.toml,
+  # ci-attestations.yml) skips the Linux unit-test jobs the local gate already
+  # ran. Pushes never skip.
+  ci-mode:
+    name: CI Mode 🛂
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    outputs:
+      trusted: ${{ steps.gate.outputs.trusted }}
+      skip_rust-tests-linux: ${{ steps.gate.outputs.skip_rust-tests-linux }}
+      skip_rust-linux-tier2: ${{ steps.gate.outputs.skip_rust-linux-tier2 }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: zackees/ci.yml
+          ref: 70e8fefe414840ec786a24b71c82c55731e4f8cc
+          path: .ci-lint
+          persist-credentials: false
+          sparse-checkout: ci_lint
+      - name: Local Gate Attestation 🛂
+        id: gate
+        run: PYTHONPATH=.ci-lint python3 -m ci_lint local-gate verify --repo . --trust --github-output
+
+  rust-tests-linux:
+    name: Rust Tests 🦀 (ubuntu-26.04)
+    runs-on: ubuntu-26.04
+    needs: [check-event, ci-mode]
+    if: needs.ci-mode.outputs.skip_rust-tests-linux != 'true'
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Same soldr-wrapped commands as docs/rust-port/testing-policy.md.
+      # setup-soldr installs soldr and the toolchain from rust-toolchain.toml.
+      - name: Set Up soldr 🦀
+        uses: zackees/setup-soldr@0f223ac68e97fccaaeab026ef1861e5bf73639ac # v0.9.85
+        with:
+          cache: false
+
+      - name: Install Rust Components 🦀
+        run: |
+          soldr rustup toolchain install
+          soldr rustup component add clippy rustfmt
+          soldr rustup show
+
+      - name: Run Rust Tests 🧪
+        run: soldr cargo test --workspace --locked
+
+      - name: Run Clippy 📎
+        run: soldr cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Check Formatting 🎨
+        run: soldr cargo fmt --all --check
+
   rust-tests:
     name: Rust Tests 🦀
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-26.04, macos-26, windows-2025-vs2026]
+        os: [macos-26, windows-2025-vs2026]
     runs-on: ${{ matrix.os }}
     needs: check-event
     defaults:
@@ -450,9 +544,9 @@ jobs:
 
       - name: Install Rust Components 🦀
         run: |
-          rustup toolchain install
-          rustup component add clippy rustfmt
-          rustup show
+          soldr rustup toolchain install
+          soldr rustup component add clippy rustfmt
+          soldr rustup show
 
       - name: Run Rust Tests 🧪
         run: soldr cargo test --workspace --locked
@@ -466,7 +560,8 @@ jobs:
   rust-linux-tier2:
     name: Rust Tier 2 Linux 🐧
     runs-on: ubuntu-26.04
-    needs: check-event
+    needs: [check-event, ci-mode]
+    if: needs.ci-mode.outputs.skip_rust-linux-tier2 != 'true'
     defaults:
       run:
         shell: bash
@@ -477,8 +572,24 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
+      # PRs restore the compiler cache; only master pushes save it (a cache
+      # saved from a PR ref is unreachable by other PRs).
+      - uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ github.workspace }}/.tier2-ccache
+          key: tier2-ccache-linux-${{ github.sha }}
+          restore-keys: tier2-ccache-linux-
+
       - name: Validate Tier 2 (ENABLE_RUST_LIBOBS OFF vs ON) ✅
+        env:
+          OBS_CCACHE_DIR: ${{ github.workspace }}/.tier2-ccache
         run: bash rust/tools/linux-validate/run.sh
+
+      - uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        with:
+          path: ${{ github.workspace }}/.tier2-ccache
+          key: tier2-ccache-linux-${{ github.sha }}
 
   rust-tier2:
     name: Rust Tier 2 ${{ matrix.os }}
