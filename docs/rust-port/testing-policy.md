@@ -200,6 +200,12 @@ Tier 2 checks.
   ctest working directory, and removes it in teardown.
 - No sleeps: synchronize on events, semaphores or joins.
 - Threading tests MUST be deterministic: 100 consecutive runs without a flake.
+  Check it with the Tier 2 harness, which reruns the given tests in both the
+  OFF and ON builds after the normal run, stopping at the first failure
+  (`ctest --repeat until-fail:N`):
+  `rust/tools/linux-validate/run.sh --repeat 100 --tests 'test_threading|test_task'`
+  (`tier2-validate/validate.sh` takes the same options on macOS;
+  `validate.ps1 -Repeat 100 -Tests '...'` on Windows).
 - Tier 3 parity for I/O code runs the oracle and the Rust shim against
   separate temp directories and compares the resulting files byte for byte,
   plus the return values.

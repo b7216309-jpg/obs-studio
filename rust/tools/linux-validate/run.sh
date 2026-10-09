@@ -1,5 +1,10 @@
 #!/bin/bash
-# Usage: rust/tools/linux-validate/run.sh
+# Usage: rust/tools/linux-validate/run.sh [--repeat N] [--tests REGEX]
+#   --repeat N     after the normal ctest run, rerun the tests (or those
+#                  matching --tests) up to N times in both builds, stopping
+#                  at the first failure (ctest --repeat until-fail:N)
+#   --tests REGEX  limit the repeat run to tests matching REGEX (ctest -R)
+# e.g. run.sh --repeat 100 --tests 'test_threading|test_task'
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../../.." && pwd)
@@ -29,4 +34,4 @@ docker run --rm \
   "${env[@]}" \
   -v "$here/validate.sh:/validate.sh:ro" \
   -v obs-rust-linux-validate-build:/build \
-  obs-rust-linux-validate /validate.sh
+  obs-rust-linux-validate /validate.sh "$@"

@@ -3,8 +3,37 @@
 # container built from ./Dockerfile; see run.sh. Builds libobs, the cmocka
 # tests and the decklink plugin with ENABLE_RUST_LIBOBS=OFF and =ON, runs the
 # unchanged C tests in both, and fails unless both builds export exactly the
-# same dynamic symbols from libobs.
+# same dynamic symbols from libobs. With --repeat N it then reruns the tests
+# (or the --tests REGEX subset) up to N times per build to catch flakes, as
+# testing-policy.md requires for threading and task.
 set -euo pipefail
+
+repeat=0
+tests=
+while [ $# -gt 0 ]; do
+  case "$1" in
+  --repeat)
+    repeat="${2:-}"
+    shift 2 || { echo "--repeat needs a count" >&2; exit 2; }
+    ;;
+  --tests)
+    tests="${2:-}"
+    shift 2 || { echo "--tests needs a regex" >&2; exit 2; }
+    ;;
+  *)
+    echo "usage: validate.sh [--repeat N] [--tests REGEX]" >&2
+    exit 2
+    ;;
+  esac
+done
+if ! [[ "$repeat" =~ ^[0-9]+$ ]]; then
+  echo "--repeat must be a non-negative integer, got '$repeat'" >&2
+  exit 2
+fi
+if [ -n "$tests" ] && [ "$repeat" -eq 0 ]; then
+  echo "--tests only applies with --repeat" >&2
+  exit 2
+fi
 
 git config --global --add safe.directory /src
 mkdir -p /src
@@ -43,6 +72,12 @@ for mode in OFF ON; do
 
   echo "== [$mode] ctest"
   ctest --test-dir "$build" --output-on-failure
+
+  if [ "$repeat" -gt 0 ]; then
+    echo "== [$mode] ctest --repeat until-fail:$repeat${tests:+ -R $tests}"
+    ctest --test-dir "$build" --output-on-failure \
+      --repeat "until-fail:$repeat" ${tests:+-R "$tests"}
+  fi
 
   lib=$(ls "$build"/libobs/libobs.so.* | head -1)
   nm -D --defined-only "$lib" | awk '{print $3}' | sort >"/build/exports-$mode.txt"
