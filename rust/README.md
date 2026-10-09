@@ -16,6 +16,17 @@ scripting APIs) while its internals are rewritten in Rust. Every port follows
 
 ## Running the tests
 
+The fastest path is the local gate, which runs the same checks as CI's Linux jobs:
+
+```sh
+./lint          # clang-format, gersemi, rustfmt, clippy (~8 s)
+./unittest      # Rust Tiers 1-3, then Tier 2 in Docker (~40 s warm)
+uvx --from git+https://github.com/zackees/ci.yml@70e8fefe414840ec786a24b71c82c55731e4f8cc ci-lint local-gate run
+```
+
+The last command stamps the commit, so CI skips the Linux Rust test and Tier 2 jobs for that PR.
+The individual commands are:
+
 ```sh
 soldr cargo test --workspace                               # Tiers 1-3
 soldr cargo clippy --workspace --all-targets -- -D warnings
