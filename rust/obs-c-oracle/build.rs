@@ -16,6 +16,7 @@ fn main() {
         .file("oracle/path_extension.c")
         .file("oracle/array_serializer.c")
         .file("oracle/darray.c")
+        .file("oracle/crc32.c")
         .include(&libobs)
         .std("c11")
         .compile("obs_c_oracle");
@@ -39,6 +40,8 @@ fn main() {
         "util/darray.h",
         "util/serializer.h",
         "util/bmem.h",
+        "util/crc32.c",
+        "util/crc32.h",
     ] {
         println!("cargo:rerun-if-changed={}", libobs.join(header).display());
     }

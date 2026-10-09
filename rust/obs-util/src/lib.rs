@@ -9,6 +9,7 @@ use obs_c_oracle as _; // links the test bmalloc/bfree (oracle/test_bmem.c)
 
 pub mod array_serializer;
 pub mod bitstream;
+pub mod crc32;
 pub mod darray;
 pub mod ffi;
 pub mod path_extension;

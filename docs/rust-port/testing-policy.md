@@ -144,6 +144,43 @@ If the unit to port is one function inside a larger C file,
 Example: `os_get_path_extension` moves from `util/platform.c` to
 `util/path-extension.c`.
 
+## Characterization tests for units without C tests
+
+If the C unit to port has no existing C test, Tier 2 has nothing to run. First
+add a cmocka characterization test `test/cmocka/test_<unit>.c` that pins the
+CURRENT C behavior, including odd or buggy behavior. Comment such cases as
+"characterized, not endorsed".
+
+- It lands in its own commit/PR BEFORE the port, contains no Rust, and passes
+  with `ENABLE_RUST_LIBOBS` OFF (and ON, since nothing is swapped yet).
+- From then on it is an existing C test under Tier 2: the port may not edit
+  it. Tier 1 ports its assertions 1:1 into Rust.
+- Register it in `test/cmocka/CMakeLists.txt` and add it to the `cmocka-tests`
+  aggregate target like the others.
+- If the C source is not exported from libobs (e.g. `util/utf8.c`), compile
+  that C source into the test executable, as `test_formatted_filename` does.
+  The test must then be marked as characterizing the C source only: it cannot
+  exercise the Rust swap until the symbol is reachable.
+- Use only portable behavior, or guard platform-specific cases with
+  `#ifdef _WIN32` / `#ifndef _WIN32`.
+
+### Port order for Phase 3 (pure leaf utilities)
+
+1. `crc32`
+2. `utf8`
+3. `lexer.c` / `cf-lexer.c` / `cf-parser.c`
+4. `text-lookup.c`
+5. `dstr.c`
+6. `base.c`
+7. `bmem.c` last: a wrong allocator breaks every other Tier 2 run.
+
+- The `utf8` and `dstr` Tier 3 parity tests MUST generate arbitrary byte
+  strings, including invalid UTF-8.
+- The `bmem` port MUST match the 32-byte alignment, the
+  `bmalloc`/`brealloc`/`bfree` hooks, and `bnum_allocs` accounting:
+  `brealloc(NULL, n)` counts as an allocation, and `bfree(NULL)` does not
+  decrement.
+
 ## Header-inline code (static inline functions and macros)
 
 Code that lives entirely in a public header as `static inline` functions or
@@ -158,7 +195,9 @@ macros is compiled into every caller, so no symbol swap is possible.
   differential test. That test runs against oracle wrappers that instantiate
   the inline functions as non-inline `oracle_*` functions.
 - This currently covers `util/darray.h` (the `struct darray` layout is the
-  contract) and `util/serializer.h` (`struct serializer`).
+  contract), `util/serializer.h` (`struct serializer`), and the `static inline`
+  helpers in `util/dstr.h` (the `struct dstr` layout is the contract).
+  `util/dstr.c` itself is ported with the normal workflow.
 
 ## Layout and naming
 
@@ -175,7 +214,7 @@ rust/
   tools/tier2-validate/       # macOS/Windows Tier 2 (validate.sh, validate.ps1)
   obs-util/                   # ports of libobs/util/*
     src/bitstream.rs          # safe core (Tier 1 target)
-    src/{path_extension,darray,array_serializer}.rs # more safe cores
+    src/{path_extension,darray,array_serializer,crc32}.rs # more safe cores
     src/ffi/bitstream.rs      # extern "C" shim, #[repr(C)] types (Tier 2)
     src/ffi/*.rs              # matching shims for the cores above
     tests/bitstream.rs        # Tier 1: 1:1 port of test/cmocka/test_bitstream.c
@@ -184,7 +223,7 @@ rust/
   obs-c-oracle/               # dev-only: original C compiled with oracle_ prefix
     build.rs
     oracle/bitstream.c        # #define renames + #include of libobs/util/bitstream.c
-    oracle/{path_extension,array_serializer,darray,test_bmem}.c
+    oracle/{path_extension,array_serializer,darray,crc32,test_bmem}.c
 ```
 
 Port crates are plain `rlib`s. Only `libobs-rust` is a `staticlib`: each
