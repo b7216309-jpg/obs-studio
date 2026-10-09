@@ -71,3 +71,14 @@ fn r16_is_big_endian_and_unaligned_safe() {
     assert_eq!(reader.read_bits(4), 0xA);
     assert_eq!(reader.r16(), 0xBCDE);
 }
+
+#[test]
+fn reads_past_end_keep_returning_zero() {
+    let data = [0xFF];
+    let mut reader = BitstreamReader::new(&data);
+    assert_eq!(reader.r8(), 0xFF);
+    for _ in 0..4 {
+        assert_eq!(reader.r16(), 0);
+        assert_eq!(reader.read_bit(), 0);
+    }
+}
