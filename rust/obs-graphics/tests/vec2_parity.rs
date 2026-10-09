@@ -115,3 +115,30 @@ proptest! {
         );
     }
 }
+
+/// Random bits almost never land on the `<=` boundary, so check the case
+/// where the difference equals epsilon exactly.
+#[test]
+fn close_boundary_matches_c_oracle() {
+    for (x1, x2) in [(1.0_f32, 1.5_f32), (0.0, 0.25), (-3.0, -2.0), (2.0, 2.0)] {
+        let epsilon = (x1 - x2).abs();
+        let r1 = vec2 { x: x1, y: 0.0 };
+        let r2 = vec2 { x: x2, y: 0.0 };
+        let c1 = OracleVec2 { x: x1, y: 0.0 };
+        let c2 = OracleVec2 { x: x2, y: 0.0 };
+
+        // SAFETY: all pointers refer to live, properly aligned locals.
+        let (ours, theirs) = unsafe {
+            (
+                rs::vec2_close(&r1, &r2, epsilon),
+                c::oracle_vec2_close(&c1, &c2, epsilon),
+            )
+        };
+        assert_ne!(theirs, 0, "C treats a difference equal to epsilon as close");
+        assert_eq!(ours != 0, theirs != 0);
+        assert_eq!(
+            Vec2::new(x1, 0.0).close(Vec2::new(x2, 0.0), epsilon),
+            theirs != 0
+        );
+    }
+}
