@@ -1,10 +1,10 @@
 #include "product-name.h"
 
+#include <stdio.h>
+
 int obs_product_string(char *out, size_t size, const char *obs_version, const char *rust_version)
 {
-	(void)obs_version;
-	(void)rust_version;
-	if (size)
-		out[0] = 0;
-	return 0;
+	if (rust_version)
+		return snprintf(out, size, "OBS-Studio-Rust %s (based on OBS %s)", rust_version, obs_version);
+	return snprintf(out, size, "OBS %s", obs_version);
 }

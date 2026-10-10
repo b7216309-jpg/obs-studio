@@ -2,6 +2,7 @@
 
 #include <widgets/OBSBasic.hpp>
 #include <utility/RemoteTextThread.hpp>
+#include <utility/product-name.h>
 
 #include <qt-wrappers.hpp>
 
@@ -28,7 +29,9 @@ OBSAbout::OBSAbout(QWidget *parent) : QDialog(parent), ui(new Ui::OBSAbout)
 	}
 
 #ifdef OBS_RUST_VERSION
-	QString ver = QString("OBS-Studio-Rust %1 (based on OBS %2)").arg(OBS_RUST_VERSION, obs_get_version_string());
+	char product[256];
+	obs_product_string(product, sizeof(product), obs_get_version_string(), OBS_RUST_VERSION);
+	QString ver = QT_UTF8(product);
 #else
 	QString ver = obs_get_version_string();
 #endif
