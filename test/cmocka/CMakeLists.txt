@@ -70,6 +70,14 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   add_test(test_quick_write ${CMAKE_CURRENT_BINARY_DIR}/test_quick_write)
 endif()
 
+# AV1 OBU helpers (obs-av1.c)
+add_executable(test_av1 test_av1.c)
+target_include_directories(test_av1 PRIVATE ${CMOCKA_INCLUDE_DIR})
+target_link_libraries(test_av1 PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
+
+add_dependencies(cmocka-tests test_av1)
+add_test(test_av1 ${CMAKE_CURRENT_BINARY_DIR}/test_av1)
+
 # AVC header test. Where the toolchain supports it, obs-avc.c is compiled into
 # the test with UBSan (no recovery) so undefined behavior fails the test
 # (obs-rust/obs-studio#11); its definitions take precedence over libobs's.
