@@ -1,6 +1,7 @@
 #include <stdarg.h>
 #include <stddef.h>
 #include <setjmp.h>
+#include <stdio.h>
 #include <cmocka.h>
 
 #include <util/c99defs.h>
@@ -19,8 +20,12 @@ static uint32_t fourcc(const char code[4])
 static void assert_codes(const char *const *codes, size_t count, enum video_format expected)
 {
 	for (size_t i = 0; i < count; i++) {
-		if (video_format_from_fourcc(fourcc(codes[i])) != expected)
-			fail_msg("fourcc '%.4s'", codes[i]);
+		if (video_format_from_fourcc(fourcc(codes[i])) != expected) {
+			/* fail_msg() expands to cm_print_error(), which the
+			 * Windows cmocka library does not export. */
+			fprintf(stderr, "fourcc '%.4s'\n", codes[i]);
+			fail();
+		}
 	}
 }
 
