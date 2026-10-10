@@ -27,7 +27,11 @@ OBSAbout::OBSAbout(QWidget *parent) : QDialog(parent), ui(new Ui::OBSAbout)
 		bitness = " (64 bit)";
 	}
 
+#ifdef OBS_RUST_VERSION
+	QString ver = QString("OBS-Studio-Rust %1 (based on OBS %2)").arg(OBS_RUST_VERSION, obs_get_version_string());
+#else
 	QString ver = obs_get_version_string();
+#endif
 
 	ui->version->setText(ver + bitness);
 

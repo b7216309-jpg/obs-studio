@@ -1368,6 +1368,17 @@ bool OBSApp::OBSInit()
 	return true;
 }
 
+/* Product name and version for display: "OBS <version>", or for the Rust build
+ * (ENABLE_RUST_LIBOBS) "OBS-Studio-Rust <rust version> (based on OBS <version>)". */
+string OBSApp::GetProductString(bool platform) const
+{
+#ifdef OBS_RUST_VERSION
+	return "OBS-Studio-Rust " OBS_RUST_VERSION " (based on OBS " + GetVersionString(platform) + ")";
+#else
+	return "OBS " + GetVersionString(platform);
+#endif
+}
+
 string OBSApp::GetVersionString(bool platform) const
 {
 	stringstream ver;
