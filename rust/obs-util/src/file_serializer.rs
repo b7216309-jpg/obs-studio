@@ -46,9 +46,10 @@ fn path_from_bytes(bytes: &[u8]) -> Option<PathBuf> {
     }
     #[cfg(windows)]
     {
-        // `os_fopen` rejects a path that is not valid UTF-8.
-        let text = std::str::from_utf8(bytes).ok()?;
-        Some(PathBuf::from(text))
+        // libobs os_fopen converts with utf8_to_wchar (MultiByteToWideChar,
+        // flags 0), which substitutes U+FFFD for invalid UTF-8 and then
+        // attempts the substituted path.
+        Some(PathBuf::from(String::from_utf8_lossy(bytes).as_ref()))
     }
 }
 

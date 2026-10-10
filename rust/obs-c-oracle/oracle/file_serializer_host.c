@@ -28,39 +28,29 @@ void *bmemdup(const void *ptr, size_t size)
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
-static wchar_t *utf8_to_wide(const char *path)
-{
-	int n;
-	wchar_t *wide;
+/* platform_conv_host.c: libobs platform.c's conversion over the real
+ * util/utf8.c, whose utf8_to_wchar converts with flags 0 so invalid UTF-8
+ * becomes U+FFFD instead of failing. */
+size_t os_utf8_to_wcs_ptr(const char *str, size_t len, wchar_t **pstr);
+void bfree(void *ptr);
 
-	if (!path)
-		return NULL;
-	n = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, path, -1, NULL, 0);
-	if (n <= 0)
-		return NULL;
-	wide = (wchar_t *)malloc((size_t)n * sizeof(wchar_t));
-	if (!wide)
-		return NULL;
-	if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, path, -1, wide, n) != n) {
-		free(wide);
-		return NULL;
-	}
-	return wide;
-}
-
+/* platform.c os_fopen + os_wfopen (MSVC branch). Like libobs, the
+ * conversion result is not checked. */
 FILE *os_fopen(const char *path, const char *mode)
 {
-	wchar_t *wpath;
-	wchar_t *wmode;
-	FILE *file;
+	wchar_t *wpath = NULL;
+	wchar_t *wmode = NULL;
+	FILE *file = NULL;
 
-	if (!path)
-		return NULL;
-	wpath = utf8_to_wide(path);
-	wmode = utf8_to_wide(mode);
-	file = (wpath && wmode) ? _wfopen(wpath, wmode) : NULL;
-	free(wpath);
-	free(wmode);
+	if (path) {
+		os_utf8_to_wcs_ptr(path, 0, &wpath);
+		if (wpath) {
+			os_utf8_to_wcs_ptr(mode, 0, &wmode);
+			file = _wfopen(wpath, wmode);
+			bfree(wmode);
+		}
+		bfree(wpath);
+	}
 	return file;
 }
 
@@ -74,47 +64,60 @@ int64_t os_ftelli64(FILE *file)
 	return _ftelli64(file);
 }
 
+/* platform-windows.c os_unlink / os_rename / os_safe_replace. */
 int os_unlink(const char *path)
 {
-	wchar_t *wide = utf8_to_wide(path);
-	int code;
+	wchar_t *w_path;
+	BOOL success;
 
-	if (!wide)
+	os_utf8_to_wcs_ptr(path, 0, &w_path);
+	if (!w_path)
 		return -1;
-	code = DeleteFileW(wide) ? 0 : -1;
-	free(wide);
-	return code;
+	success = DeleteFileW(w_path);
+	bfree(w_path);
+	return success ? 0 : -1;
 }
 
 int os_rename(const char *old_path, const char *new_path)
 {
-	wchar_t *old_wide = utf8_to_wide(old_path);
-	wchar_t *new_wide = utf8_to_wide(new_path);
+	wchar_t *old_path_utf16 = NULL;
+	wchar_t *new_path_utf16 = NULL;
 	int code = -1;
 
-	if (old_wide && new_wide)
-		code = MoveFileExW(old_wide, new_wide, MOVEFILE_REPLACE_EXISTING) ? 0 : -1;
-	free(old_wide);
-	free(new_wide);
+	if (!os_utf8_to_wcs_ptr(old_path, 0, &old_path_utf16))
+		return -1;
+	if (!os_utf8_to_wcs_ptr(new_path, 0, &new_path_utf16))
+		goto error;
+	code = MoveFileExW(old_path_utf16, new_path_utf16, MOVEFILE_REPLACE_EXISTING) ? 0 : -1;
+error:
+	bfree(old_path_utf16);
+	bfree(new_path_utf16);
 	return code;
 }
 
 int os_safe_replace(const char *target, const char *from, const char *backup)
 {
-	wchar_t *wtarget = target ? utf8_to_wide(target) : NULL;
-	wchar_t *wfrom = from ? utf8_to_wide(from) : NULL;
-	wchar_t *wbackup = backup ? utf8_to_wide(backup) : NULL;
+	wchar_t *wtarget = NULL;
+	wchar_t *wfrom = NULL;
+	wchar_t *wbackup = NULL;
 	int code = -1;
 
-	if (wtarget && wfrom && (!backup || wbackup)) {
-		if (ReplaceFileW(wtarget, wfrom, wbackup, 0, NULL, NULL))
-			code = 0;
-		else if (GetLastError() == ERROR_FILE_NOT_FOUND)
-			code = MoveFileExW(wfrom, wtarget, MOVEFILE_REPLACE_EXISTING) ? 0 : -1;
-	}
-	free(wtarget);
-	free(wfrom);
-	free(wbackup);
+	if (!target || !from)
+		return -1;
+	if (!os_utf8_to_wcs_ptr(target, 0, &wtarget))
+		return -1;
+	if (!os_utf8_to_wcs_ptr(from, 0, &wfrom))
+		goto fail;
+	if (backup && !os_utf8_to_wcs_ptr(backup, 0, &wbackup))
+		goto fail;
+	if (ReplaceFileW(wtarget, wfrom, wbackup, 0, NULL, NULL))
+		code = 0;
+	else if (GetLastError() == ERROR_FILE_NOT_FOUND)
+		code = MoveFileExW(wfrom, wtarget, MOVEFILE_REPLACE_EXISTING) ? 0 : -1;
+fail:
+	bfree(wtarget);
+	bfree(wfrom);
+	bfree(wbackup);
 	return code;
 }
 #else
