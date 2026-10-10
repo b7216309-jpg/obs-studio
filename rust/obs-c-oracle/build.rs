@@ -33,6 +33,7 @@ fn main() {
         .file("oracle/nal.c")
         .file("oracle/encoder_packet.c")
         .file("oracle/hevc.c")
+        .file("oracle/av1.c")
         .file("oracle/graphics_math_axisang.c")
         .file("oracle/graphics_math_bounds.c")
         .file("oracle/graphics_math_math_extra.c")
@@ -55,7 +56,7 @@ fn main() {
         .file("oracle/task.c")
         .file("oracle/profiler_snapshot.c")
         .include(&libobs)
-        // obs.h (for obs-hevc.c) needs the CMake-generated obsconfig.h.
+        // obs.h (for obs-hevc.c and obs-av1.c) needs the CMake-generated obsconfig.h.
         .include("oracle/obsconfig")
         .std("c11");
     // task.c calls pthread_mutex_*/pthread_create plus the os_event/os_sem
@@ -102,6 +103,8 @@ fn main() {
         "obs-nal.h",
         "obs-hevc.c",
         "obs-hevc.h",
+        "obs-av1.c",
+        "obs-av1.h",
         "obs-encoder.h",
         "graphics/math-defs.h",
         "graphics/math-extra.h",

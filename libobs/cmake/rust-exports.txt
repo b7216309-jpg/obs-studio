@@ -18,6 +18,10 @@ file_input_serializer_init
 file_output_serializer_free
 file_output_serializer_init
 file_output_serializer_init_safe
+metadata_obu
+metadata_obu_itu_t35
+obs_av1_keyframe
+obs_extract_av1_headers
 obs_extract_hevc_headers
 obs_hevc_keyframe
 obs_nal_find_startcode
