@@ -7,6 +7,8 @@
 #define _FILE_OFFSET_BITS 64
 /* PTHREAD_MUTEX_RECURSIVE is behind _GNU_SOURCE with -std=c11. */
 #define _GNU_SOURCE
+/* dstr_printf is C-only and lives renamed in oracle/dstr_libc.c. */
+#define dstr_printf oracle_dstr_printf
 #define config_create oracle_config_create
 #define config_open oracle_config_open
 #define config_open_string oracle_config_open_string
