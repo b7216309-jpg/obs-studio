@@ -30,6 +30,7 @@ fn main() {
         .file("oracle/darray.c")
         .file("oracle/crc32.c")
         .file("oracle/vec2.c")
+        .file("oracle/nal.c")
         .file("oracle/graphics_math_axisang.c")
         .file("oracle/graphics_math_bounds.c")
         .file("oracle/graphics_math_math_extra.c")
@@ -81,6 +82,8 @@ fn main() {
         "util/crc32.h",
         "graphics/vec2.c",
         "graphics/vec2.h",
+        "obs-nal.c",
+        "obs-nal.h",
         "graphics/math-defs.h",
         "graphics/math-extra.h",
         "graphics/math-extra.c",

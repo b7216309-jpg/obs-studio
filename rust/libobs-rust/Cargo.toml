@@ -14,3 +14,4 @@ doctest = false
 [dependencies]
 obs-util = { path = "../obs-util" }
 obs-graphics = { path = "../obs-graphics" }
+obs-codec = { path = "../obs-codec" }

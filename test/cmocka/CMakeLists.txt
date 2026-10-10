@@ -78,6 +78,14 @@ target_link_libraries(test_av1 PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
 add_dependencies(cmocka-tests test_av1)
 add_test(test_av1 ${CMAKE_CURRENT_BINARY_DIR}/test_av1)
 
+# NAL start-code search (obs-nal.c)
+add_executable(test_nal test_nal.c)
+target_include_directories(test_nal PRIVATE ${CMOCKA_INCLUDE_DIR})
+target_link_libraries(test_nal PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
+
+add_dependencies(cmocka-tests test_nal)
+add_test(test_nal ${CMAKE_CURRENT_BINARY_DIR}/test_nal)
+
 # AVC header test. Where the toolchain supports it, obs-avc.c is compiled into
 # the test with UBSan (no recovery) so undefined behavior fails the test
 # (obs-rust/obs-studio#11); its definitions take precedence over libobs's.

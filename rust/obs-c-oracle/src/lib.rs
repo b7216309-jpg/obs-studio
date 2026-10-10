@@ -325,3 +325,11 @@ pub mod file_serializer {
         pub fn oracle_file_output_serializer_free(s: *mut OracleSerializer);
     }
 }
+
+pub mod nal {
+    //! `libobs/obs-nal.c`.
+
+    unsafe extern "C" {
+        pub fn oracle_obs_nal_find_startcode(p: *const u8, end: *const u8) -> *const u8;
+    }
+}

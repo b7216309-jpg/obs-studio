@@ -62,7 +62,7 @@ target_sources(
     obs-missing-files.h
     obs-module.c
     obs-module.h
-    obs-nal.c
+    $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:obs-nal.c>
     obs-nal.h
     obs-output-delay.c
     obs-output.c
