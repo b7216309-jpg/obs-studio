@@ -108,8 +108,17 @@ pub fn obus(data: &[u8]) -> impl Iterator<Item = (usize, Obu)> + '_ {
 /// `frame_type` 0 (`KEY_FRAME`) is.
 #[must_use]
 pub fn keyframe(data: &[u8]) -> bool {
-    let _ = (data, obus(data), get_bits(0, 0, 1));
-    todo!()
+    for (at, obu) in obus(data) {
+        if obu.size != 0 && (obu.kind == OBU_FRAME || obu.kind == OBU_FRAME_HEADER) {
+            let val = data[at + obu.header_len];
+            if get_bits(val, 0, 1) == 0 {
+                // !show_existing_frame
+                return get_bits(val, 1, 2) == 0; // frame_type
+            }
+            return false;
+        }
+    }
+    false
 }
 
 /// `obs_extract_av1_headers`: every OBU stays in `packet`; sequence header
@@ -123,8 +132,15 @@ pub struct Av1Headers {
 /// `obs_extract_av1_headers`.
 #[must_use]
 pub fn extract_headers(data: &[u8]) -> Av1Headers {
-    let _ = data;
-    todo!()
+    let mut out = Av1Headers::default();
+    for (at, obu) in obus(data) {
+        let bytes = &data[at..at + obu.len()];
+        if obu.kind == OBU_METADATA || obu.kind == OBU_SEQUENCE_HEADER {
+            out.header.extend_from_slice(bytes);
+        }
+        out.packet.extend_from_slice(bytes);
+    }
+    out
 }
 
 /// `encode_uleb128`.
@@ -143,10 +159,14 @@ fn encode_uleb128(mut val: u64, out: &mut Vec<u8>) {
 /// header byte, leb128 size, type, payload, and the `0x80` trailing bits.
 #[must_use]
 pub fn metadata_obu(payload: &[u8], metadata_type: u8) -> Vec<u8> {
-    let _ = (
-        payload,
-        metadata_type,
-        encode_uleb128 as fn(u64, &mut Vec<u8>),
-    );
-    todo!()
+    // C: int64_t size_field = 1 + source_bufsize + 1;
+    let size_field = 1 + payload.len() as u64 + 1;
+    let mut out = Vec::with_capacity(payload.len() + 13);
+    // obu_type METADATA, obu_has_size_field set
+    out.push((OBU_METADATA << 3) | (1 << 1));
+    encode_uleb128(size_field, &mut out);
+    out.push(metadata_type);
+    out.extend_from_slice(payload);
+    out.push(0x80);
+    out
 }
