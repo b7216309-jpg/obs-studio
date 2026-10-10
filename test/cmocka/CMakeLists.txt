@@ -449,3 +449,36 @@ if(TARGET OBS::filters)
   add_dependencies(cmocka-tests test_cube_lut)
   add_test(test_cube_lut ${CMAKE_CURRENT_BINARY_DIR}/test_cube_lut)
 endif()
+
+# Linux capture reconnection after a PipeWire restart (obs-rust/obs-studio#108).
+# The decisions are compiled into the tests directly; no PipeWire daemon,
+# portal or PulseAudio server is needed.
+if(TARGET OBS::pipewire)
+  add_executable(
+    test_pipewire_reconnect
+    test_pipewire_reconnect.c
+    "${CMAKE_SOURCE_DIR}/plugins/linux-pipewire/reconnect-policy.c"
+  )
+  target_include_directories(
+    test_pipewire_reconnect
+    PRIVATE ${CMOCKA_INCLUDE_DIR} "${CMAKE_SOURCE_DIR}/plugins/linux-pipewire"
+  )
+  target_link_libraries(test_pipewire_reconnect PRIVATE OBS::libobs PipeWire::PipeWire ${CMOCKA_LIBRARIES})
+  add_dependencies(cmocka-tests test_pipewire_reconnect)
+  add_test(test_pipewire_reconnect ${CMAKE_CURRENT_BINARY_DIR}/test_pipewire_reconnect)
+endif()
+
+if(TARGET OBS::pulseaudio)
+  add_executable(
+    test_pulse_reconnect
+    test_pulse_reconnect.c
+    "${CMAKE_SOURCE_DIR}/plugins/linux-pulseaudio/pulse-reconnect.c"
+  )
+  target_include_directories(
+    test_pulse_reconnect
+    PRIVATE ${CMOCKA_INCLUDE_DIR} "${CMAKE_SOURCE_DIR}/plugins/linux-pulseaudio"
+  )
+  target_link_libraries(test_pulse_reconnect PRIVATE OBS::libobs PulseAudio::PulseAudio ${CMOCKA_LIBRARIES})
+  add_dependencies(cmocka-tests test_pulse_reconnect)
+  add_test(test_pulse_reconnect ${CMAKE_CURRENT_BINARY_DIR}/test_pulse_reconnect)
+endif()
