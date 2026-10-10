@@ -256,6 +256,7 @@ name = "obs-codec"
 version = "0.1.0"
 dependencies = [
  "obs-c-oracle",
+ "obs-util",
  "proptest",
 ]
 
