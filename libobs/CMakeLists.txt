@@ -222,7 +222,7 @@ target_sources(
     graphics/texture-render.c
     $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:graphics/vec2.c>
     graphics/vec2.h
-    graphics/vec3.c
+    $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:graphics/vec3.c>
     graphics/vec3.h
     $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:graphics/vec4.c>
     graphics/vec4.h
