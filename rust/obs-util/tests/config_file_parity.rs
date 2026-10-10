@@ -13,9 +13,10 @@
 //! - A null `section`/`name` to the getters/setters. C's `config_find_*`
 //!   hash lookups take NULL keys harmlessly in most cases but
 //!   `config_set_*` would store them; the shim treats null as abort.
-//! - Windows-only: the UTF-16 path handling in `os_fopen`/`os_safe_replace`
-//!   and the `_O_WTEXT` BOM on save. The oracle runs the POSIX side; paths
-//!   here are byte strings.
+//! - Windows path encoding: the core writes the UTF-8 BOM and hands wide
+//!   paths to the OS like C, but `path_from_bytes` lossy-converts invalid
+//!   UTF-8 (`U+FFFD`) where C's UTF-8→UTF-16 conversion fails the open.
+//!   The oracle runs the POSIX side; paths here are byte strings.
 //! - `PTHREAD_MUTEX_RECURSIVE` reentrancy: C locks around calls that can
 //!   nest (set_default_* call the setters). Rust holds `Inner` mutably and
 //!   never re-locks, which is strictly stronger.

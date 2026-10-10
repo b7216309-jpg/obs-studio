@@ -1,9 +1,8 @@
 //! Tier 1: safe-core tests for `libobs/util/config-file.c`.
 //!
 //! Each test names the cmocka case in `test/cmocka/test_config_file.c` (or
-//! `test/cmocka/test_config_save.c`) it mirrors. Assertions about NULL
-//! `config_t *` arguments are properties of the C ABI and live in
-//! `config_file_parity.rs`.
+//! `test/cmocka/test_config_save.c`) it mirrors. Assertions that need a
+//! NULL `config_t *` go through the FFI shim, the only place NULL exists.
 
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -81,13 +80,23 @@ fn write_file(path: &Path, text: &[u8]) {
     std::fs::write(path, text).unwrap();
 }
 
+/// Reads like C's `expect_file`: `os_fread_utf8` strips a leading UTF-8
+/// BOM, which `config_save` emits on Windows.
+fn read_file_utf8(path: &Path) -> Vec<u8> {
+    let mut data = std::fs::read(path).unwrap();
+    if data.starts_with(b"\xEF\xBB\xBF") {
+        data.drain(..3);
+    }
+    data
+}
+
 fn expect_file(path: &Path, expected: &[u8]) {
-    assert_eq!(std::fs::read(path).unwrap(), expected);
+    assert_eq!(read_file_utf8(path), expected);
 }
 
 fn expect_file_empty(path: &Path) {
     assert!(path.exists());
-    assert_eq!(std::fs::read(path).unwrap(), b"");
+    assert_eq!(read_file_utf8(path), b"");
 }
 
 /* ---------------------------------------------------------------------- */
@@ -579,12 +588,28 @@ fn test_open_defaults_errors() {
 /* ---------------------------------------------------------------------- */
 /* files */
 
-/// `test_open_null_config`: the `config_t **` NULL assertions are C ABI
-/// cases (see `config_file_parity.rs`); only the file check is here.
+/// `test_open_null_config`: a null `config_t **` fails with CONFIG_ERROR
+/// before touching the file, and `config_close(NULL)` is a no-op.
 #[test]
 fn test_open_null_config() {
+    use obs_util::ffi::config_file::{config_close, config_data, config_open, config_open_string};
+    use std::ffi::CString;
     let scratch = Scratch::new();
     let path = scratch.join("open.ini");
+    let cpath = CString::new(path.as_os_str().as_encoded_bytes()).unwrap();
+    // SAFETY: null pointers; the shim must reject them without touching
+    // the filesystem.
+    unsafe {
+        assert_eq!(
+            config_open(core::ptr::null_mut::<*mut config_data>(), cpath.as_ptr(), 1),
+            CONFIG_ERROR
+        );
+        assert_eq!(
+            config_open_string(core::ptr::null_mut::<*mut config_data>(), c"[S]\n".as_ptr()),
+            CONFIG_ERROR
+        );
+        config_close(core::ptr::null_mut());
+    }
     assert!(!path.exists());
 }
 
