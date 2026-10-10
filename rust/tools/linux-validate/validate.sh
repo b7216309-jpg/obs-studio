@@ -102,6 +102,26 @@ for mode in OFF ON; do
   nm -D --undefined-only "$plugin" | grep bitstream_reader
 done
 
+# Issue #80: panic=abort is set only for [profile.release], so libobs must
+# link the release-profile staticlib even for Debug builds; a dev-profile
+# (panic=unwind) archive would let a shim panic unwind across the C ABI.
+# Configure-only check: inspect which archive the Debug link line uses.
+echo "== [ON/Debug] Rust staticlib profile"
+dbg=/build/rust-ON-debug
+cmake -S /src -B "$dbg" -G Ninja -DCMAKE_BUILD_TYPE=Debug \
+  -DENABLE_UNIT_TESTS=OFF -DENABLE_RUST_LIBOBS=ON \
+  -DENABLE_FRONTEND=OFF -DENABLE_SCRIPTING=OFF -DENABLE_BROWSER=OFF \
+  -DENABLE_WEBSOCKET=OFF -DENABLE_AJA=OFF -DENABLE_WEBRTC=OFF \
+  -DENABLE_NVENC=OFF -DENABLE_QSV11=OFF -DENABLE_VST=OFF -DENABLE_WAYLAND=OFF \
+  ${OBS_VERSION_OVERRIDE:+"-DOBS_VERSION_OVERRIDE=$OBS_VERSION_OVERRIDE"} \
+  >"$dbg.configure.log" 2>&1 || { tail -40 "$dbg.configure.log"; exit 1; }
+rust_archives=$(grep -ohE '/cargo/build/[^ $]*/liblibobs_rust\.a' "$dbg/build.ninja" | sort -u)
+echo "$rust_archives"
+if [ -z "$rust_archives" ] || grep -qv '/release/liblibobs_rust\.a$' <<<"$rust_archives"; then
+  echo "FAIL: Debug libobs links a non-release (panic=unwind) Rust staticlib"
+  exit 1
+fi
+
 echo "== libobs exported symbols, OFF vs ON"
 diff /build/exports-OFF.txt /build/exports-ON.txt
 echo "IDENTICAL ($(wc -l </build/exports-ON.txt) symbols)"
