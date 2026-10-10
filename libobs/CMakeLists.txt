@@ -30,7 +30,7 @@ add_library(OBS::libobs ALIAS libobs)
 target_sources(
   libobs
   PRIVATE
-    $<$<BOOL:${ENABLE_HEVC}>:obs-hevc.c>
+    $<$<AND:$<BOOL:${ENABLE_HEVC}>,$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>>:obs-hevc.c>
     $<$<BOOL:${ENABLE_HEVC}>:obs-hevc.h>
     obs-audio-controls.c
     obs-audio-controls.h

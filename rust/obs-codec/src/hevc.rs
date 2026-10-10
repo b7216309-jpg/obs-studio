@@ -31,9 +31,13 @@ fn kind(header: u8) -> u8 {
 /// skipped; no such unit is `false`.
 #[must_use]
 pub fn keyframe(data: &[u8]) -> bool {
-    let _ = (kind(0), nal_units(data), Bucket::Header);
-    let _ = nal::packet_priority(data, 0, rate);
-    todo!()
+    for nal in nal_units(data) {
+        let kind = kind(nal.header(data));
+        if kind <= NAL_RSV_IRAP_VCL23 {
+            return kind >= NAL_BLA_W_LP;
+        }
+    }
+    false
 }
 
 /// `compute_hevc_keyframe_priority`: IRAP pictures (16..=23) are keyframes
@@ -60,16 +64,14 @@ fn rate(header: u8) -> UnitRating {
 /// priority in `data`.
 #[must_use]
 pub fn packet_priority(data: &[u8], priority: i32) -> i32 {
-    let _ = (data, priority);
-    todo!()
+    nal::packet_priority(data, priority, rate)
 }
 
 /// `serialize_hevc_data`: converts Annex B `data` to length-prefixed units,
 /// starting from the source packet's `keyframe` and `priority`.
 #[must_use]
 pub fn to_hvcc(data: &[u8], keyframe: bool, priority: i32) -> LengthPrefixed {
-    let _ = (data, keyframe, priority);
-    todo!()
+    nal::to_length_prefixed(data, keyframe, priority, rate)
 }
 
 /// `obs_extract_hevc_headers`: VPS, SPS and PPS units go to `header`,
@@ -77,6 +79,9 @@ pub fn to_hvcc(data: &[u8], keyframe: bool, priority: i32) -> LengthPrefixed {
 /// its start code.
 #[must_use]
 pub fn extract_headers(data: &[u8]) -> SplitHeaders {
-    let _ = data;
-    todo!()
+    nal::split_headers(data, |header| match kind(header) {
+        NAL_VPS | NAL_SPS | NAL_PPS => Bucket::Header,
+        NAL_SEI_PREFIX | NAL_SEI_SUFFIX => Bucket::Sei,
+        _ => Bucket::Packet,
+    })
 }
