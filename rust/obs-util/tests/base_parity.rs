@@ -459,8 +459,10 @@ fn capture(f: impl FnOnce()) -> (Vec<u8>, Vec<u8>) {
         let old_out = libc::dup(1);
         let old_err = libc::dup(2);
         assert!(old_out >= 0 && old_err >= 0);
-        assert_eq!(libc::dup2(out_fd, 1), 1);
-        assert_eq!(libc::dup2(err_fd, 2), 2);
+        // POSIX dup2 returns the new fd; the MSVC CRT returns 0. Both
+        // return -1 on failure.
+        assert_ne!(libc::dup2(out_fd, 1), -1);
+        assert_ne!(libc::dup2(err_fd, 2), -1);
         assert_eq!(libc::close(out_fd), 0);
         assert_eq!(libc::close(err_fd), 0);
         let restore = RestoreFds { old_out, old_err };
