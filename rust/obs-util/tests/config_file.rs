@@ -9,9 +9,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use obs_c_oracle as _;
-use obs_util::config_file::{
-    CONFIG_ERROR, CONFIG_FILENOTFOUND, CONFIG_SUCCESS, Config, OpenType,
-};
+use obs_util::config_file::{CONFIG_ERROR, CONFIG_FILENOTFOUND, CONFIG_SUCCESS, Config, OpenType};
 
 struct Scratch(PathBuf);
 
@@ -375,7 +373,7 @@ fn test_set_get_types() {
     expect_str(&c, "S", "str", b"hello");
 
     /* a NULL string is stored as ""; the safe API has no NULL, but an
-       empty slice is the same store */
+    empty slice is the same store */
     c.set_string(b"S", b"null", b"");
     expect_str(&c, "S", "null", b"");
 
