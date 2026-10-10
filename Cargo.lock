@@ -211,6 +211,7 @@ checksum = "ce5d3ddc6d3fa000eb1536d85e147bfe31aacaba692ed6a876f95cb7c855be78"
 name = "libobs-rust"
 version = "0.1.0"
 dependencies = [
+ "obs-codec",
  "obs-graphics",
  "obs-util",
 ]
@@ -247,6 +248,14 @@ name = "obs-c-oracle"
 version = "0.1.0"
 dependencies = [
  "cc",
+]
+
+[[package]]
+name = "obs-codec"
+version = "0.1.0"
+dependencies = [
+ "obs-c-oracle",
+ "proptest",
 ]
 
 [[package]]

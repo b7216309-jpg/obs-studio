@@ -17,6 +17,7 @@ file_input_serializer_init
 file_output_serializer_free
 file_output_serializer_init
 file_output_serializer_init_safe
+obs_nal_find_startcode
 os_get_path_extension
 vec2_abs
 vec2_ceil
