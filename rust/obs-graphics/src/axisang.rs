@@ -33,7 +33,12 @@ impl AxisAng {
     /// it takes the normalizing branch and yields NaNs.
     #[must_use]
     pub fn from_quat(q: Quat) -> Self {
-        let _ = (q, EPSILON);
-        todo!()
+        let len = q.x * q.x + q.y * q.y + q.z * q.z;
+        // close_float(len, 0.0f, EPSILON)
+        if (len - 0.0).abs() <= EPSILON {
+            return Self::default();
+        }
+        let leni = 1.0 / len.sqrt();
+        Self::new(q.x * leni, q.y * leni, q.z * leni, q.w.acos() * 2.0)
     }
 }
