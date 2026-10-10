@@ -18,8 +18,6 @@
 
 #include "reconnect-policy.h"
 
-#include <util/c99defs.h>
-
 #include <errno.h>
 
 #include <pipewire/core.h>
@@ -54,8 +52,14 @@ bool obs_pipewire_stream_state_is_lost(bool *disconnected, bool *streamed, enum 
 
 bool obs_pipewire_reconnect_next_delay(uint32_t *attempts, uint32_t *delay_ms)
 {
-	/* Not implemented yet: the screencast is never reconnected. */
-	UNUSED_PARAMETER(attempts);
-	UNUSED_PARAMETER(delay_ms);
-	return false;
+	uint32_t shift;
+
+	if (++*attempts >= OBS_PIPEWIRE_RECONNECT_MAX_ATTEMPTS)
+		return false;
+
+	shift = *attempts < 6 ? *attempts : 6;
+	*delay_ms = 250u << shift;
+	if (*delay_ms > OBS_PIPEWIRE_RECONNECT_MAX_DELAY_MS)
+		*delay_ms = OBS_PIPEWIRE_RECONNECT_MAX_DELAY_MS;
+	return true;
 }
