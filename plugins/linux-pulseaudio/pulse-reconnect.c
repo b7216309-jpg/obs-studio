@@ -15,6 +15,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <string.h>
 
+#include <pulse/timeval.h>
+
 #include <util/bmem.h>
 #include <util/c99defs.h>
 
@@ -22,16 +24,30 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 bool pulse_reconnect_on_failed(struct pulse_reconnect_state *state, uint64_t *delay_usec)
 {
-	/* Not implemented yet: a failed context stays failed. */
-	UNUSED_PARAMETER(state);
-	UNUSED_PARAMETER(delay_usec);
-	return false;
+	if (!state->was_ready)
+		return false;
+
+	/* Retry at once, then back off: a server that refuses or rejects the
+	 * connection fails again right away. */
+	*delay_usec = 0;
+	if (state->attempts > 0) {
+		*delay_usec = (PA_USEC_PER_SEC / 4) << (state->attempts < 6 ? state->attempts : 6);
+		if (*delay_usec > PULSE_RECONNECT_MAX_DELAY_USEC)
+			*delay_usec = PULSE_RECONNECT_MAX_DELAY_USEC;
+	}
+	state->attempts++;
+	state->reconnecting = true;
+	return true;
 }
 
 bool pulse_reconnect_on_ready(struct pulse_reconnect_state *state)
 {
-	UNUSED_PARAMETER(state);
-	return false;
+	bool reconnected = state->reconnecting;
+
+	state->was_ready = true;
+	state->reconnecting = false;
+	state->attempts = 0;
+	return reconnected;
 }
 
 char *pulse_default_device(const pa_server_info *info, bool input)
