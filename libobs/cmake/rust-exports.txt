@@ -12,6 +12,11 @@ bitstream_reader_r16
 bitstream_reader_r8
 bitstream_reader_read_bits
 calc_crc32
+file_input_serializer_free
+file_input_serializer_init
+file_output_serializer_free
+file_output_serializer_init
+file_output_serializer_init_safe
 os_get_path_extension
 vec2_abs
 vec2_ceil

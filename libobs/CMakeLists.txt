@@ -114,7 +114,7 @@ target_sources(
     util/deque.h
     util/dstr.c
     util/dstr.h
-    util/file-serializer.c
+    $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:util/file-serializer.c>
     util/file-serializer.h
     util/lexer.c
     util/lexer.h
