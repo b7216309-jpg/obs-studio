@@ -19,7 +19,7 @@ target_sources(
     audio-monitoring/osx/mac-helpers.h
     obs-cocoa.m
     util/apple/cfstring-utils.h
-    util/pipe-posix.c
+    $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:util/pipe-posix.c>
     util/platform-cocoa.m
     util/platform-nix.c
     util/threading-posix.c

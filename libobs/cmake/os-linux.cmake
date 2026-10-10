@@ -11,7 +11,7 @@ target_sources(
     obs-nix-platform.h
     obs-nix-x11.c
     obs-nix.c
-    util/pipe-posix.c
+    $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:util/pipe-posix.c>
     util/platform-nix.c
     util/threading-posix.c
     util/threading-posix.h

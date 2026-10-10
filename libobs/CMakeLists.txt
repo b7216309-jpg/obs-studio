@@ -120,7 +120,8 @@ target_sources(
     $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:util/lexer.c>
     util/lexer.h
     $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:util/path-extension.c>
-    util/pipe.c
+    $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:util/pipe.c>
+    $<$<BOOL:${ENABLE_RUST_LIBOBS}>:util/pipe-variadic.c>
     util/pipe.h
     util/platform.c
     util/platform.h

@@ -186,4 +186,17 @@ mod process {
     fn pipe_null_command_is_none_mirrors_test_pipe_null_arguments() {
         assert!(Pipe::create(None, b"r").is_none());
     }
+
+    /// A signaled child destroys to its pid, mirroring the `waitpid`
+    /// fallthrough in `os_process_pipe_destroy`.
+    #[test]
+    fn pipe_signaled_child_destroys_to_pid() {
+        let pipe = Pipe::create(Some(b"sleep 30"), b"r").expect("spawn sh");
+        let pid = pipe.pid();
+        // SAFETY: `pid` is our own child, signaled exactly once.
+        unsafe {
+            assert_eq!(libc::kill(pid as libc::pid_t, libc::SIGKILL), 0);
+        }
+        assert_eq!(pipe.destroy(), pid as core::ffi::c_int);
+    }
 }
