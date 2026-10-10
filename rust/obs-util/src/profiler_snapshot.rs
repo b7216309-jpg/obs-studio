@@ -55,8 +55,13 @@ pub struct FilterStep {
 /// Calls `f` on each entry in order until it returns `false`
 /// (`profiler_snapshot_enumerate_roots` / `_children`).
 pub fn enumerate<L: EntryList>(list: &mut L, mut f: impl FnMut(&mut L::Entry) -> bool) {
-    let _ = (list, &mut f);
-    todo!()
+    let mut i = 0;
+    while i < list.len() {
+        if !f(list.entry(i)) {
+            break;
+        }
+        i += 1;
+    }
 }
 
 /// Asks `f` about each entry in order and removes the ones it marks
@@ -66,6 +71,17 @@ pub fn enumerate<L: EntryList>(list: &mut L, mut f: impl FnMut(&mut L::Entry) ->
 /// entry the callback sees can still be removed. The index only advances
 /// past entries that stay, so every entry is seen once.
 pub fn filter<L: EntryList>(list: &mut L, mut f: impl FnMut(&mut L::Entry) -> FilterStep) {
-    let _ = (list, &mut f);
-    todo!()
+    let mut i = 0;
+    while i < list.len() {
+        let step = f(list.entry(i));
+        if step.remove {
+            list.remove(i);
+        }
+        if !step.keep_going {
+            break;
+        }
+        if !step.remove {
+            i += 1;
+        }
+    }
 }

@@ -123,7 +123,7 @@ target_sources(
     util/pipe.h
     util/platform.c
     util/platform.h
-    util/profiler-snapshot.c
+    $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:util/profiler-snapshot.c>
     util/profiler-snapshot.h
     util/profiler.c
     util/profiler.h
