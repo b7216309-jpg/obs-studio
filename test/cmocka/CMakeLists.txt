@@ -251,6 +251,17 @@ endif()
 add_dependencies(cmocka-tests test_vec2)
 add_test(test_vec2 ${CMAKE_CURRENT_BINARY_DIR}/test_vec2)
 
+# vec4 test (graphics/vec4.c)
+add_executable(test_vec4 test_vec4.c)
+target_include_directories(test_vec4 PRIVATE ${CMOCKA_INCLUDE_DIR})
+target_link_libraries(test_vec4 PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
+if(NOT MSVC)
+  target_link_libraries(test_vec4 PRIVATE m)
+endif()
+
+add_dependencies(cmocka-tests test_vec4)
+add_test(test_vec4 ${CMAKE_CURRENT_BINARY_DIR}/test_vec4)
+
 # Exercise AV1 encoder configuration against real FFmpeg options without a
 # running OBS video session, then encode a small synthetic sequence with SVT.
 find_package(FFmpeg 8.0 REQUIRED avcodec avformat avutil)
