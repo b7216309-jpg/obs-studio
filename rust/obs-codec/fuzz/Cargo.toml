@@ -24,3 +24,10 @@ path = "fuzz_targets/hevc_diff.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "av1_differential"
+path = "fuzz_targets/av1_differential.rs"
+test = false
+doc = false
+bench = false
