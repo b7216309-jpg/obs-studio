@@ -20,22 +20,36 @@
 
 #include <util/c99defs.h>
 
+#include <errno.h>
+
+#include <pipewire/core.h>
+
 bool obs_pipewire_core_error_is_lost(bool *disconnected, uint32_t id, int res)
 {
-	/* Not implemented yet: core errors are only logged. */
-	UNUSED_PARAMETER(disconnected);
-	UNUSED_PARAMETER(id);
-	UNUSED_PARAMETER(res);
-	return false;
+	/* -EPIPE on the core means the connection to the PipeWire daemon is
+	 * gone (e.g. the daemon restarted). It never comes back by itself. */
+	if (id != PW_ID_CORE || res != -EPIPE || *disconnected)
+		return false;
+
+	*disconnected = true;
+	return true;
 }
 
 bool obs_pipewire_stream_state_is_lost(bool *disconnected, bool *streamed, enum pw_stream_state state)
 {
-	/* Not implemented yet: stream errors are only logged. */
-	UNUSED_PARAMETER(disconnected);
-	UNUSED_PARAMETER(streamed);
-	UNUSED_PARAMETER(state);
-	return false;
+	if (state == PW_STREAM_STATE_STREAMING)
+		*streamed = true;
+
+	/* A stream that failed after streaming does not recover by itself
+	 * either (e.g. the producer renegotiated to formats we no longer
+	 * accept). Report it like a lost connection so the owner can set
+	 * everything up again. Errors before that (no matching format, no
+	 * target node) would fail the same way again, so leave those alone. */
+	if (state != PW_STREAM_STATE_ERROR || !*streamed || *disconnected)
+		return false;
+
+	*disconnected = true;
+	return true;
 }
 
 bool obs_pipewire_reconnect_next_delay(uint32_t *attempts, uint32_t *delay_ms)
