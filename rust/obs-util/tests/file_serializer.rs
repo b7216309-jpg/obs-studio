@@ -313,6 +313,7 @@ fn safe_empty_commit_renames_empty_temp() {
 
 /// At most 64 bytes, so a destination replaced by a `/dev/full` symlink
 /// fails the comparison instead of reading forever.
+#[cfg(unix)]
 fn read_prefix(path: &Path) -> Vec<u8> {
     use std::io::Read;
     let mut buf = Vec::new();

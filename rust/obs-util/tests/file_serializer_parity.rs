@@ -11,6 +11,11 @@
 //!   shim returns 0, matching `s_write` in `serializer.h`.
 //! - A null serializer pointer. `free` returns. C would crash. The cmocka
 //!   tests always pass a real serializer.
+//! - Windows only, input: the stream state after a failed seek (one that
+//!   would land before the start of the file). Both sides must return -1,
+//!   but the MSVC CRT's failed `_fseeki64` leaves `ftell` reporting how far
+//!   its read-ahead buffer got instead of the unchanged position, so the
+//!   comparison stops there. Rust keeps the position, as glibc does.
 //!
 //! `struct serializer` layout is already checked by the array-serializer
 //! tests. This port adds no new `#[repr(C)]` struct.
@@ -406,6 +411,12 @@ fn compare_input(scratch: &Scratch, content: &[u8], ops: &[Op]) -> Vec<Outcome> 
     for op in ops {
         let ours = run(&rust.view(), op);
         let theirs = run(&oracle.view(), op);
+        if cfg!(windows) && matches!(op, Op::Seek(..)) && ours.ret == -1 {
+            // MSVC failed-seek state, see the header.
+            assert_eq!(theirs.ret, -1, "{op:?}");
+            got.push(ours);
+            break;
+        }
         assert_eq!(ours, theirs, "{op:?}");
         got.push(ours);
     }
@@ -491,7 +502,10 @@ fn input_seek_matches_oracle() {
     assert_eq!(back[11].ret, 2);
     assert_eq!(back[11].bytes, b"IJ");
     assert_eq!(back[12].ret, -1);
-    assert_eq!(back[13].ret, back[12].pos);
+    // On Windows the comparison stops at the failed seek; see the header.
+    if !cfg!(windows) {
+        assert_eq!(back[13].ret, back[12].pos);
+    }
 }
 
 #[test]
