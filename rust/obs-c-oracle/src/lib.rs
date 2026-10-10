@@ -227,6 +227,45 @@ pub mod graphics_math {
         pub t: OracleVec3,
     }
 
+    /// Independent declaration of `struct axisang` (no `__m128` member).
+    #[repr(C)]
+    #[derive(Debug, Clone, Copy, Default, PartialEq)]
+    pub struct OracleAxisAng {
+        pub x: f32,
+        pub y: f32,
+        pub z: f32,
+        pub w: f32,
+    }
+
+    /// Independent declaration of `struct quat`.
+    #[repr(C, align(16))]
+    #[derive(Debug, Clone, Copy, Default, PartialEq)]
+    pub struct OracleQuat {
+        pub x: f32,
+        pub y: f32,
+        pub z: f32,
+        pub w: f32,
+    }
+
+    unsafe extern "C" {
+        pub fn oracle_axisang_from_quat(dst: *mut OracleAxisAng, q: *const OracleQuat);
+
+        pub fn oracle_axisang_size() -> usize;
+        pub fn oracle_axisang_align() -> usize;
+        pub fn oracle_axisang_offset_x() -> usize;
+        pub fn oracle_axisang_offset_y() -> usize;
+        pub fn oracle_axisang_offset_z() -> usize;
+        pub fn oracle_axisang_offset_w() -> usize;
+        pub fn oracle_axisang_offset_ptr() -> usize;
+        pub fn oracle_quat_size() -> usize;
+        pub fn oracle_quat_align() -> usize;
+        pub fn oracle_quat_offset_x() -> usize;
+        pub fn oracle_quat_offset_y() -> usize;
+        pub fn oracle_quat_offset_z() -> usize;
+        pub fn oracle_quat_offset_w() -> usize;
+        pub fn oracle_quat_offset_m() -> usize;
+    }
+
     unsafe extern "C" {
         pub fn oracle_vec3_from_vec4(dst: *mut OracleVec3, v: *const OracleVec4);
         pub fn oracle_vec3_plane_dist(v: *const OracleVec3, p: *const OraclePlane) -> f32;
