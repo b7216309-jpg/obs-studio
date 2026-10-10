@@ -3,6 +3,11 @@
  * implementation. bmalloc/bfree come from test_bmem.c. The args getter it
  * calls internally is renamed too, so the oracle never touches the Rust
  * shim. Unix-only: this file needs <spawn.h>. */
+/* -std=c11 hides POSIX declarations (fdopen) on glibc; libobs builds with
+ * the GNU dialect, so ask for them explicitly. */
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
 #define os_process_args_get_argv oracle_os_process_args_get_argv
 #define os_process_pipe_create oracle_os_process_pipe_create
 #define os_process_pipe_create2 oracle_os_process_pipe_create2
