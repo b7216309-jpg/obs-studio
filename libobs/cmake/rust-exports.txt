@@ -128,3 +128,5 @@ vec3_transform3x4
 vec4_from_vec3
 vec4_transform
 video_format_from_fourcc
+video_format_get_parameters
+video_format_get_parameters_for_format

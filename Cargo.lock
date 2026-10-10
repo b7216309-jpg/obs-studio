@@ -274,6 +274,7 @@ name = "obs-media-io"
 version = "0.1.0"
 dependencies = [
  "obs-c-oracle",
+ "obs-graphics",
  "proptest",
 ]
 

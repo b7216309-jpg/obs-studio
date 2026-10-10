@@ -179,7 +179,7 @@ target_sources(
     media-io/video-frame.h
     media-io/video-io.c
     media-io/video-io.h
-    media-io/video-matrices.c
+    $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:media-io/video-matrices.c>
     media-io/video-scaler-ffmpeg.c
     media-io/video-scaler.h
 )
