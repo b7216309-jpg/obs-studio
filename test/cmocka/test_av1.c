@@ -26,7 +26,9 @@ static void test_av1_keyframe(void **state)
 {
 	UNUSED_PARAMETER(state);
 
-	const uint8_t key[] = {OBU(OBS_OBU_TEMPORAL_DELIMITER, 0, 1), 0,          OBU(OBS_OBU_SEQUENCE_HEADER, 0, 1),
+	const uint8_t key[] = {OBU(OBS_OBU_TEMPORAL_DELIMITER, 0, 1),
+			       0,
+			       OBU(OBS_OBU_SEQUENCE_HEADER, 0, 1),
 			       2,
 			       0xaa,
 			       0xbb,
@@ -51,8 +53,17 @@ static void test_av1_extract_headers(void **state)
 {
 	UNUSED_PARAMETER(state);
 
-	const uint8_t data[] = {OBU(OBS_OBU_TEMPORAL_DELIMITER, 0, 1), 0, OBU(OBS_OBU_SEQUENCE_HEADER, 0, 1), 1, 0xaa,
-				OBU(OBS_OBU_METADATA, 0, 1), 1, 0xbb, OBU(OBS_OBU_FRAME, 0, 1), 1, 0x10};
+	const uint8_t data[] = {OBU(OBS_OBU_TEMPORAL_DELIMITER, 0, 1),
+				0,
+				OBU(OBS_OBU_SEQUENCE_HEADER, 0, 1),
+				1,
+				0xaa,
+				OBU(OBS_OBU_METADATA, 0, 1),
+				1,
+				0xbb,
+				OBU(OBS_OBU_FRAME, 0, 1),
+				1,
+				0x10};
 	uint8_t *packet, *header;
 	size_t packet_size, header_size;
 
@@ -181,12 +192,9 @@ static void test_av1_header_only_at_end(void **state)
 int main(void)
 {
 	const struct CMUnitTest tests[] = {
-		cmocka_unit_test(test_av1_keyframe),
-		cmocka_unit_test(test_av1_extract_headers),
-		cmocka_unit_test(test_av1_metadata_obu),
-		cmocka_unit_test(test_av1_truncated_obu),
-		cmocka_unit_test(test_av1_long_leb128),
-		cmocka_unit_test(test_av1_extension_without_size),
+		cmocka_unit_test(test_av1_keyframe),           cmocka_unit_test(test_av1_extract_headers),
+		cmocka_unit_test(test_av1_metadata_obu),       cmocka_unit_test(test_av1_truncated_obu),
+		cmocka_unit_test(test_av1_long_leb128),        cmocka_unit_test(test_av1_extension_without_size),
 		cmocka_unit_test(test_av1_header_only_at_end),
 	};
 
