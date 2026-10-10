@@ -1,7 +1,11 @@
 //! Tier 3: the Rust C ABI shim and safe core behave exactly like the
 //! original `libobs/obs-nal.c`, compiled as an oracle.
 //!
-//! No intentional differences from C.
+//! Intentional difference (not run against C, which crashes): with fewer than
+//! three bytes the C search computes `end - 3`, before the start of the
+//! range. For a pointer within 3 bytes of address 0, such as `(NULL, NULL)`,
+//! that wraps around and the C code reads address 0. The port returns `end`
+//! for any empty or short range.
 //!
 //! The C search reads a word at a time once the pointer is 4-byte aligned,
 //! so every case runs the same bytes at all 8 start offsets in an aligned
@@ -159,4 +163,13 @@ fn cmocka_cases_match_c_oracle() {
         assert_eq!(got, want, "C oracle for {data:?}");
         check(data).unwrap();
     }
+}
+
+/// The port's side of the intentional difference: a NULL range returns
+/// `end` (here NULL) without reading. C would read address 0.
+#[test]
+fn null_range_returns_end() {
+    // SAFETY: `end <= p`, so nothing is read.
+    let got = unsafe { rs::obs_nal_find_startcode(core::ptr::null(), core::ptr::null()) };
+    assert!(got.is_null());
 }
