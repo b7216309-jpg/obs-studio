@@ -6,7 +6,16 @@ include(FetchContent)
 FetchContent_Declare(Corrosion GIT_REPOSITORY https://github.com/corrosion-rs/corrosion.git GIT_TAG v0.5.2)
 FetchContent_MakeAvailable(Corrosion)
 
-corrosion_import_crate(MANIFEST_PATH "${CMAKE_SOURCE_DIR}/Cargo.toml" CRATES libobs-rust CRATE_TYPES staticlib)
+# Pin the release profile so the staticlib always builds with
+# panic=abort (set only for [profile.release] in Cargo.toml): without
+# PROFILE, Corrosion picks dev for Debug or unset CMAKE_BUILD_TYPE, and a
+# panic in a no_mangle shim would then unwind across the C ABI (UB).
+corrosion_import_crate(
+  MANIFEST_PATH "${CMAKE_SOURCE_DIR}/Cargo.toml"
+  CRATES libobs-rust
+  CRATE_TYPES staticlib
+  PROFILE release
+)
 
 # Whole-archive so every exported C symbol ends up in libobs, including ones
 # libobs itself never calls (e.g. bitstream_reader_r16, used by plugins).
