@@ -53,6 +53,7 @@ fn main() {
         .file(libobs.join("util/utf8.c"))
         .file("oracle/video_fourcc.c")
         .file("oracle/task.c")
+        .file("oracle/profiler_snapshot.c")
         .include(&libobs)
         // obs.h (for obs-hevc.c) needs the CMake-generated obsconfig.h.
         .include("oracle/obsconfig")
@@ -134,6 +135,9 @@ fn main() {
         "util/platform.c",
         "util/utf8.c",
         "util/utf8.h",
+        "util/profiler-snapshot.c",
+        "util/profiler-snapshot.h",
+        "util/profiler.h",
         "util/platform.h",
         "media-io/video-fourcc.c",
         "media-io/video-io.h",

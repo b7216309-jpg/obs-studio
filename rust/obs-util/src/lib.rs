@@ -15,4 +15,5 @@ pub mod darray;
 pub mod ffi;
 pub mod file_serializer;
 pub mod path_extension;
+pub mod profiler_snapshot;
 pub mod task;

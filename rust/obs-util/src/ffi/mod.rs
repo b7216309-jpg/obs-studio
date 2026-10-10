@@ -7,4 +7,5 @@ pub mod crc32;
 pub mod darray;
 pub mod file_serializer;
 pub mod path_extension;
+pub mod profiler_snapshot;
 pub mod task;
