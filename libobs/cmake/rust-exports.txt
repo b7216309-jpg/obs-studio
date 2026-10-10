@@ -20,6 +20,11 @@ file_output_serializer_init
 file_output_serializer_init_safe
 obs_nal_find_startcode
 os_get_path_extension
+os_task_queue_create
+os_task_queue_destroy
+os_task_queue_inside
+os_task_queue_queue_task
+os_task_queue_wait
 vec2_abs
 vec2_ceil
 vec2_close

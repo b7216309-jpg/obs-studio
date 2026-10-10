@@ -50,13 +50,23 @@ fn main() {
         .file("oracle/platform_conv_host.c")
         .file(libobs.join("util/utf8.c"))
         .file("oracle/video_fourcc.c")
+        .file("oracle/task.c")
         .include(&libobs)
         .std("c11");
-    // base.c includes util/threading.h, which includes <pthread.h>. MSVC has
-    // none; libobs builds against the pthreads-win32 headers in
-    // deps/w32-pthreads, so the oracle does too. Only declarations are used.
+    // task.c calls pthread_mutex_*/pthread_create plus the os_event/os_sem
+    // helpers from threading-*.c. On Unix both come from the real sources
+    // and the system pthread. MSVC has no pthread: libobs builds against
+    // deps/w32-pthreads, so the oracle compiles its single-file build and
+    // the real threading-windows.c instead.
     if oracle.get_compiler().is_like_msvc() {
-        oracle.include(libobs.with_file_name("deps").join("w32-pthreads"));
+        let deps = libobs.with_file_name("deps");
+        oracle
+            .include(deps.join("w32-pthreads"))
+            .define("PTW32_STATIC_LIB", None)
+            .file(deps.join("w32-pthreads/pthread.c"))
+            .file(libobs.join("util/threading-windows.c"));
+    } else {
+        oracle.file(libobs.join("util/threading-posix.c"));
     }
     oracle.compile("obs_c_oracle");
 
@@ -121,6 +131,13 @@ fn main() {
         "media-io/video-fourcc.c",
         "media-io/video-io.h",
         "media-io/media-io-defs.h",
+        "util/task.c",
+        "util/task.h",
+        "util/deque.h",
+        "util/threading-posix.c",
+        "util/threading-posix.h",
+        "util/threading-windows.c",
+        "util/threading-windows.h",
     ] {
         println!("cargo:rerun-if-changed={}", libobs.join(header).display());
     }
