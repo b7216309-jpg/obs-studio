@@ -170,7 +170,7 @@ target_sources(
     media-io/media-io-defs.h
     media-io/media-remux.c
     media-io/media-remux.h
-    media-io/video-fourcc.c
+    $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:media-io/video-fourcc.c>
     media-io/video-frame.c
     media-io/video-frame.h
     media-io/video-io.c

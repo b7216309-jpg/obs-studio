@@ -11,7 +11,12 @@ impl VideoFormat {
     /// The format a fourcc names, or [`VideoFormat::None`] for a code the
     /// table does not list. Matching is exact and case-sensitive.
     pub fn from_fourcc(fourcc: u32) -> Self {
-        let _ = fourcc;
-        todo!()
+        match &fourcc.to_le_bytes() {
+            b"UYVY" | b"HDYC" | b"UYNV" | b"UYNY" | b"uyv1" | b"2vuy" | b"2Vuy" => Self::Uyvy,
+            b"YUY2" | b"Y422" | b"V422" | b"VYUY" | b"YUNV" | b"yuv2" | b"yuvs" => Self::Yuy2,
+            b"YVYU" => Self::Yvyu,
+            b"Y800" => Self::Y800,
+            _ => Self::None,
+        }
     }
 }
