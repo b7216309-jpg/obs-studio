@@ -917,7 +917,7 @@ fn test_save_safe_invalid_temp_extension() {
 /* ---------------------------------------------------------------------- */
 /* test_config_save.c */
 
-/// `config_save_reports_flush_failure` (`/dev/full` is POSIX-only).
+/// `config_save_reports_flush_failure` (`/dev/full` is Linux-only).
 #[cfg(target_os = "linux")]
 #[test]
 fn config_save_reports_flush_failure() {
@@ -926,8 +926,8 @@ fn config_save_reports_flush_failure() {
     assert_eq!(c.save(), CONFIG_ERROR);
 }
 
-/// `config_save_safe_preserves_original`.
-#[cfg(unix)]
+/// `config_save_safe_preserves_original` (`/dev/full` is Linux-only).
+#[cfg(target_os = "linux")]
 #[test]
 fn config_save_safe_preserves_original() {
     let scratch = Scratch::new();
