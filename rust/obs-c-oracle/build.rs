@@ -42,9 +42,18 @@ fn main() {
         .file("oracle/base.c")
         .file("oracle/base_drive.c")
         .file(libobs.join("util/base-variadic.c"))
+        .file("oracle/file_serializer.c")
+        .file("oracle/file_serializer_host.c")
+        .file(libobs.join("util/dstr.c"))
         .include(&libobs)
-        .std("c11")
-        .compile("obs_c_oracle");
+        .std("c11");
+    // base.c includes util/threading.h, which includes <pthread.h>. MSVC has
+    // none; libobs builds against the pthreads-win32 headers in
+    // deps/w32-pthreads, so the oracle does too. Only declarations are used.
+    if oracle.get_compiler().is_like_msvc() {
+        oracle.include(libobs.with_file_name("deps").join("w32-pthreads"));
+    }
+    oracle.compile("obs_c_oracle");
 
     // Test allocator, whole-archive so bmalloc/bfree resolve regardless of
     // link order relative to obs-util.
@@ -94,6 +103,11 @@ fn main() {
         "util/base-variadic.c",
         "util/c99defs.h",
         "util/threading.h",
+        "util/file-serializer.c",
+        "util/file-serializer.h",
+        "util/dstr.c",
+        "util/dstr.h",
+        "util/platform.h",
     ] {
         println!("cargo:rerun-if-changed={}", libobs.join(header).display());
     }
