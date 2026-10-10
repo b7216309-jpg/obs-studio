@@ -176,6 +176,8 @@ pub mod graphics_math {
     //! bounds, axisang, math-extra). The C files call each other, so all of
     //! them are compiled; only the functions a port needs are declared here.
 
+    use core::ffi::c_int;
+
     /// Independent declaration of `struct vec3`: four floats in a union
     /// with `__m128`, so 16 bytes aligned to 16.
     #[repr(C, align(16))]
@@ -205,6 +207,72 @@ pub mod graphics_math {
         pub y: OracleVec4,
         pub z: OracleVec4,
         pub t: OracleVec4,
+    }
+
+    /// Independent declaration of `struct plane`.
+    #[repr(C)]
+    #[derive(Debug, Clone, Copy, Default, PartialEq)]
+    pub struct OraclePlane {
+        pub dir: OracleVec3,
+        pub dist: f32,
+    }
+
+    /// Independent declaration of `struct matrix3`.
+    #[repr(C)]
+    #[derive(Debug, Clone, Copy, Default, PartialEq)]
+    pub struct OracleMatrix3 {
+        pub x: OracleVec3,
+        pub y: OracleVec3,
+        pub z: OracleVec3,
+        pub t: OracleVec3,
+    }
+
+    unsafe extern "C" {
+        pub fn oracle_vec3_from_vec4(dst: *mut OracleVec3, v: *const OracleVec4);
+        pub fn oracle_vec3_plane_dist(v: *const OracleVec3, p: *const OraclePlane) -> f32;
+        pub fn oracle_vec3_rotate(
+            dst: *mut OracleVec3,
+            v: *const OracleVec3,
+            m: *const OracleMatrix3,
+        );
+        pub fn oracle_vec3_transform(
+            dst: *mut OracleVec3,
+            v: *const OracleVec3,
+            m: *const OracleMatrix4,
+        );
+        pub fn oracle_vec3_transform3x4(
+            dst: *mut OracleVec3,
+            v: *const OracleVec3,
+            m: *const OracleMatrix3,
+        );
+        pub fn oracle_vec3_mirror(
+            dst: *mut OracleVec3,
+            v: *const OracleVec3,
+            p: *const OraclePlane,
+        );
+        pub fn oracle_vec3_mirrorv(
+            dst: *mut OracleVec3,
+            v: *const OracleVec3,
+            vec: *const OracleVec3,
+        );
+        pub fn oracle_vec3_rand(dst: *mut OracleVec3, positive_only: c_int);
+
+        pub fn oracle_vec3_offset_x() -> usize;
+        pub fn oracle_vec3_offset_y() -> usize;
+        pub fn oracle_vec3_offset_z() -> usize;
+        pub fn oracle_vec3_offset_w() -> usize;
+        pub fn oracle_vec3_offset_ptr() -> usize;
+        pub fn oracle_vec3_offset_m() -> usize;
+        pub fn oracle_plane_size() -> usize;
+        pub fn oracle_plane_align() -> usize;
+        pub fn oracle_plane_offset_dir() -> usize;
+        pub fn oracle_plane_offset_dist() -> usize;
+        pub fn oracle_matrix3_size() -> usize;
+        pub fn oracle_matrix3_align() -> usize;
+        pub fn oracle_matrix3_offset_x() -> usize;
+        pub fn oracle_matrix3_offset_y() -> usize;
+        pub fn oracle_matrix3_offset_z() -> usize;
+        pub fn oracle_matrix3_offset_t() -> usize;
     }
 
     unsafe extern "C" {

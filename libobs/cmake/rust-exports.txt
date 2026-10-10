@@ -18,5 +18,13 @@ vec2_ceil
 vec2_close
 vec2_floor
 vec2_norm
+vec3_from_vec4
+vec3_mirror
+vec3_mirrorv
+vec3_plane_dist
+vec3_rand
+vec3_rotate
+vec3_transform
+vec3_transform3x4
 vec4_from_vec3
 vec4_transform
