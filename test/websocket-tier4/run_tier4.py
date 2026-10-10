@@ -129,6 +129,12 @@ class ObsServer:
         self._write_config()
         env = dict(os.environ)
         env["HOME"] = self.home
+        # Stay headless: never attach to the developer's Wayland session
+        # (Qt prefers it over the X display xvfb-run provides).
+        env.pop("WAYLAND_DISPLAY", None)
+        env["QT_QPA_PLATFORM"] = "xcb"
+        for var in ("XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME"):
+            env.pop(var, None)
         xvfb = shutil.which("xvfb-run")
         if xvfb is not None:
             cmd = [xvfb, "-a", self.obs_bin]
@@ -577,22 +583,19 @@ def coverage_matrix(ctx):
         ("SetInputAudioTracks",
          {"inputName": media,
           "inputAudioTracks": {"1": True}}, [S]),
-        # Deinterlace requests are documented in protocol.json but only
-        # implemented by obs-websocket >= 5.6; the pinned server answers 204.
-        ("GetInputDeinterlaceMode", {"inputName": "T4ColorRenamed"},
-         [S, STATUS_UNKNOWN_REQUEST_TYPE]),
+        # Deinterlace requests need an async input (the media source);
+        # a sync input such as a color source answers 604.
+        ("GetInputDeinterlaceMode", {"inputName": media}, [S]),
         ("SetInputDeinterlaceMode",
-         {"inputName": "T4ColorRenamed",
-          "inputDeinterlaceMode": "OBS_DEINTERLACE_MODE_DISABLE"},
-         [S, STATUS_UNKNOWN_REQUEST_TYPE]),
-        ("GetInputDeinterlaceFieldOrder",
-         {"inputName": "T4ColorRenamed"},
-         [S, STATUS_UNKNOWN_REQUEST_TYPE]),
+         {"inputName": media,
+          "inputDeinterlaceMode": "OBS_DEINTERLACE_MODE_DISABLE"}, [S]),
+        ("GetInputDeinterlaceFieldOrder", {"inputName": media}, [S]),
         ("SetInputDeinterlaceFieldOrder",
-         {"inputName": "T4ColorRenamed",
+         {"inputName": media,
           "inputDeinterlaceFieldOrder":
-              "OBS_DEINTERLACE_FIELD_ORDER_TOP"},
-         [S, STATUS_UNKNOWN_REQUEST_TYPE]),
+              "OBS_DEINTERLACE_FIELD_ORDER_TOP"}, [S]),
+        ("GetInputDeinterlaceMode", {"inputName": "T4ColorRenamed"},
+         [STATUS_INVALID_RESOURCE_STATE]),
         ("GetInputPropertiesListPropertyItems",
          {"inputName": media, "propertyName": ctx["media_list_property"]},
          [S, STATUS_INVALID_REQUEST_FIELD, STATUS_RESOURCE_NOT_FOUND,
@@ -1017,7 +1020,13 @@ async def test_auth_handshake():
     ident = await c.wait_op(2)
     check("auth:correct-password identifies",
           ident.get("op") == 2, json.dumps(ident)[:200])
-    resp = await c.request("GetVersion")
+    # The server accepts connections before the frontend finishes loading
+    # and answers 207 (NotReady) until then; wait that out.
+    for _ in range(120):
+        resp = await c.request("GetVersion")
+        if resp_status(resp).get("code") != 207:
+            break
+        await asyncio.sleep(0.5)
     check_response("auth:authed-request", resp, "GetVersion", [S])
     await c.close_conn()
 

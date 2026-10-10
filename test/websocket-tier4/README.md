@@ -30,10 +30,14 @@ obs-websocket port (Phase 5 item 3).
 
 ## Requirements
 
-- Linux with `xvfb` (the suite runs `xvfb-run -a obs ...`).
+- Linux with `xvfb` (the suite runs `xvfb-run -a obs ...`; without
+  `xvfb-run` it runs `obs` on the existing `$DISPLAY`, e.g. a manually
+  started `Xvfb :97` with `DISPLAY=:97`). `WAYLAND_DISPLAY` is dropped and
+  Qt is forced to `xcb`, so OBS never opens on the developer's session.
 - An OBS binary containing obs-websocket 5.x — the in-repo build output or
   a packaged OBS >= 30 (websocket >= 5.4).
-- Python >= 3.10 and `websockets` (`pip3 install websockets`).
+- Python >= 3.10 and `websockets==13.1` (pinned; e.g.
+  `uvx --with websockets==13.1 python test/websocket-tier4/run_tier4.py`).
 
 ## Run
 
@@ -49,6 +53,14 @@ Flags:
 - `--no-spawn` — attach to an already-running server at `TIER4_PORT`
   (skips headless launch; implies `--skip-auth-phase`).
 - `--skip-auth-phase` — only run the unauthenticated half.
+
+The server under test listens on `TIER4_PORT`; the client only ever
+connects to `127.0.0.1`. The stream service is pointed at an empty RTMP
+server, so `StartStream` fails locally and never sends anything off-host.
+
+Not wired into CI or the local gate: it needs a full OBS build and an X
+server. Verified locally against OBS 32.1.2 (Xvfb): 179/179 checks,
+147/147 request types.
 
 Exit status is 0 only when every check passes and all 147 documented
 request types were exercised. A full run takes ~4 minutes: the matrix
