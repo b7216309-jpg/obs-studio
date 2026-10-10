@@ -171,6 +171,69 @@ pub mod bitstream {
     }
 }
 
+pub mod graphics_math {
+    //! The graphics math cluster (vec3, vec4, matrix3, matrix4, quat, plane,
+    //! bounds, axisang, math-extra). The C files call each other, so all of
+    //! them are compiled; only the functions a port needs are declared here.
+
+    /// Independent declaration of `struct vec3`: four floats in a union
+    /// with `__m128`, so 16 bytes aligned to 16.
+    #[repr(C, align(16))]
+    #[derive(Debug, Clone, Copy, Default, PartialEq)]
+    pub struct OracleVec3 {
+        pub x: f32,
+        pub y: f32,
+        pub z: f32,
+        pub w: f32,
+    }
+
+    /// Independent declaration of `struct vec4`.
+    #[repr(C, align(16))]
+    #[derive(Debug, Clone, Copy, Default, PartialEq)]
+    pub struct OracleVec4 {
+        pub x: f32,
+        pub y: f32,
+        pub z: f32,
+        pub w: f32,
+    }
+
+    /// Independent declaration of `struct matrix4`.
+    #[repr(C)]
+    #[derive(Debug, Clone, Copy, Default, PartialEq)]
+    pub struct OracleMatrix4 {
+        pub x: OracleVec4,
+        pub y: OracleVec4,
+        pub z: OracleVec4,
+        pub t: OracleVec4,
+    }
+
+    unsafe extern "C" {
+        pub fn oracle_vec4_from_vec3(dst: *mut OracleVec4, v: *const OracleVec3);
+        pub fn oracle_vec4_transform(
+            dst: *mut OracleVec4,
+            v: *const OracleVec4,
+            m: *const OracleMatrix4,
+        );
+
+        pub fn oracle_vec3_size() -> usize;
+        pub fn oracle_vec3_align() -> usize;
+        pub fn oracle_vec4_size() -> usize;
+        pub fn oracle_vec4_align() -> usize;
+        pub fn oracle_vec4_offset_x() -> usize;
+        pub fn oracle_vec4_offset_y() -> usize;
+        pub fn oracle_vec4_offset_z() -> usize;
+        pub fn oracle_vec4_offset_w() -> usize;
+        pub fn oracle_vec4_offset_ptr() -> usize;
+        pub fn oracle_vec4_offset_m() -> usize;
+        pub fn oracle_matrix4_size() -> usize;
+        pub fn oracle_matrix4_align() -> usize;
+        pub fn oracle_matrix4_offset_x() -> usize;
+        pub fn oracle_matrix4_offset_y() -> usize;
+        pub fn oracle_matrix4_offset_z() -> usize;
+        pub fn oracle_matrix4_offset_t() -> usize;
+    }
+}
+
 pub mod file_serializer {
     use core::ffi::c_char;
 

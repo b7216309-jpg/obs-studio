@@ -19,6 +19,9 @@ fn main() {
     // contract under its default /fp:precise.
     if !oracle.get_compiler().is_like_msvc() {
         oracle.flag("-ffp-contract=off");
+        // libobs/util/sse-intrin.h takes SSE from SIMDe outside MSVC. The
+        // stand-in keeps `cargo test` free of a SIMDe install.
+        oracle.include("oracle/sse-shim");
     }
     oracle
         .file("oracle/bitstream.c")
@@ -27,6 +30,15 @@ fn main() {
         .file("oracle/darray.c")
         .file("oracle/crc32.c")
         .file("oracle/vec2.c")
+        .file("oracle/graphics_math_axisang.c")
+        .file("oracle/graphics_math_bounds.c")
+        .file("oracle/graphics_math_math_extra.c")
+        .file("oracle/graphics_math_matrix3.c")
+        .file("oracle/graphics_math_matrix4.c")
+        .file("oracle/graphics_math_plane.c")
+        .file("oracle/graphics_math_quat.c")
+        .file("oracle/graphics_math_vec3.c")
+        .file("oracle/graphics_math_vec4.c")
         .file("oracle/base.c")
         .file("oracle/base_drive.c")
         .file(libobs.join("util/base-variadic.c"))
@@ -68,6 +80,24 @@ fn main() {
         "graphics/vec2.h",
         "graphics/math-defs.h",
         "graphics/math-extra.h",
+        "graphics/math-extra.c",
+        "graphics/axisang.c",
+        "graphics/axisang.h",
+        "graphics/bounds.c",
+        "graphics/bounds.h",
+        "graphics/matrix3.c",
+        "graphics/matrix3.h",
+        "graphics/matrix4.c",
+        "graphics/matrix4.h",
+        "graphics/plane.c",
+        "graphics/plane.h",
+        "graphics/quat.c",
+        "graphics/quat.h",
+        "graphics/vec3.c",
+        "graphics/vec3.h",
+        "graphics/vec4.c",
+        "graphics/vec4.h",
+        "util/sse-intrin.h",
         "util/base.c",
         "util/base.h",
         "util/base-variadic.c",
