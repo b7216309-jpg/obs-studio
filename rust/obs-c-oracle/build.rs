@@ -61,6 +61,7 @@ fn main() {
         .file("oracle/bmem.c")
         .file("oracle/test_stubs.c")
         .file("oracle/cf_tokenizer.c")
+        .file("oracle/buffered_file_serializer.c")
         .file("oracle/video_matrices.c")
         .file("oracle/pipe_args.c");
     // Unix-only: pipe-posix.c needs <spawn.h>.
@@ -166,6 +167,9 @@ fn main() {
         "util/profiler-snapshot.c",
         "util/profiler-snapshot.h",
         "util/profiler.h",
+        "util/buffered-file-serializer.c",
+        "util/buffered-file-serializer.h",
+        "util/deque.h",
         "util/platform.h",
         "media-io/video-fourcc.c",
         "media-io/video-matrices.c",

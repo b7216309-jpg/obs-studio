@@ -160,13 +160,13 @@ fn test_output_unwritable_path() {
     assert!(!path.exists());
 }
 
-/// A write under 64 KiB stays out of the file until free. The cmocka tests
-/// only read the file after free.
+/// One chunk under 64 KiB stays out of the file until free. A second chunk
+/// would force the first one out, so this write is exactly one chunk.
 #[test]
 fn small_write_stays_off_disk_until_free() {
     let scratch = Scratch::new();
     let path = scratch.join("buf.bin");
-    let payload = b"0123456789abcdefghij";
+    let payload = b"01234567";
 
     let out = Output::create(&path, 64, 8).unwrap();
     assert_eq!(out.write(payload), payload.len());

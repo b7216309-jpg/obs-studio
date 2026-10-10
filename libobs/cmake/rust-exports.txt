@@ -24,6 +24,9 @@ bmalloc
 bmemdup
 bnum_allocs
 brealloc
+buffered_file_serializer_free
+buffered_file_serializer_init
+buffered_file_serializer_init_defaults
 calc_crc32
 cf_lexer_free
 cf_lexer_init
