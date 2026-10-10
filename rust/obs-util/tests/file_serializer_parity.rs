@@ -139,7 +139,8 @@ fn path_from_bytes(bytes: &[u8]) -> PathBuf {
     }
     #[cfg(not(unix))]
     {
-        PathBuf::from(std::str::from_utf8(bytes).unwrap())
+        // libobs utf8_to_wchar substitutes U+FFFD for invalid UTF-8.
+        PathBuf::from(String::from_utf8_lossy(bytes).as_ref())
     }
 }
 
@@ -749,21 +750,20 @@ proptest! {
     }
 }
 
-/// A filename that is not UTF-8. APFS rejects it, so both inits fail. A
-/// filesystem that accepts the byte must create the same contents.
-#[cfg(unix)]
+/// A filename that is not UTF-8. Where the filesystem rejects the byte
+/// (APFS) both inits fail; where it accepts it (Linux ext4) both create the
+/// same contents. On Windows libobs converts with U+FFFD substitution
+/// (utf8_to_wchar, flags 0) and creates the substituted name, so both sides
+/// must too.
 #[test]
 fn non_utf8_filename_matches_oracle() {
-    use std::os::unix::ffi::OsStrExt;
     let scratch = Scratch::new();
-    let mut rust_name = scratch.join("rust-raw").as_os_str().as_bytes().to_vec();
-    let mut oracle_name = scratch.join("oracle-raw").as_os_str().as_bytes().to_vec();
+    let mut rust_name = path_bytes(&scratch.join("rust-raw"));
+    let mut oracle_name = path_bytes(&scratch.join("oracle-raw"));
     rust_name.push(0xFF);
     oracle_name.push(0xFF);
-    let rust_path = path_from_bytes(&rust_name);
-    let oracle_path = path_from_bytes(&oracle_name);
-    let c_rust = CString::new(rust_name).unwrap();
-    let c_oracle = CString::new(oracle_name).unwrap();
+    let c_rust = CString::new(rust_name.clone()).unwrap();
+    let c_oracle = CString::new(oracle_name.clone()).unwrap();
     let mut rust_s = Box::new(empty_rust());
     let mut oracle_s = Box::new(empty_oracle());
     // SAFETY: both serializers are writable. The paths are C strings with no
@@ -778,10 +778,12 @@ fn non_utf8_filename_matches_oracle() {
     if !rust_ok {
         assert!(rust_s.data.is_null());
         assert!(oracle_s.data.is_null());
-        assert!(!rust_path.exists());
-        assert!(!oracle_path.exists());
+        // Nothing was created: the fresh scratch dir is still empty.
+        assert!(std::fs::read_dir(&scratch.0).unwrap().next().is_none());
         return;
     }
+    let rust_path = path_from_bytes(&rust_name);
+    let oracle_path = path_from_bytes(&oracle_name);
     let ops = [
         Op::Write(b"hi".to_vec()),
         Op::Seek(1, 0),
