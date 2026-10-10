@@ -59,6 +59,8 @@ fn main() {
         .file("oracle/config_file_host.c")
         .file("oracle/platform_conv_host.c")
         .file("oracle/video_fourcc.c")
+        .file("oracle/video_io_inlines.c")
+        .file("oracle/frame_rate.c")
         .file("oracle/task.c")
         .file("oracle/profiler_snapshot.c")
         .file("oracle/bmem.c")
@@ -179,6 +181,7 @@ fn main() {
         "media-io/video-fourcc.c",
         "media-io/video-matrices.c",
         "media-io/video-io.h",
+        "media-io/frame-rate.h",
         "media-io/media-io-defs.h",
         "util/task.c",
         "util/task.h",

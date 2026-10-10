@@ -12,9 +12,11 @@
 
 pub mod bmem;
 pub mod dstr;
+pub mod frame_rate;
 pub mod lexer;
 pub mod text_lookup;
 pub mod utf8;
+pub mod video_io_inlines;
 
 pub mod path_extension {
     use core::ffi::c_char;
