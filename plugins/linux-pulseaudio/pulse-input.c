@@ -20,6 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <util/util_uint64.h>
 #include <obs-module.h>
 
+#include "pulse-reconnect.h"
 #include "pulse-wrapper.h"
 
 #define NSEC_PER_SEC 1000000000LL
@@ -234,20 +235,16 @@ static void pulse_server_info(pa_context *c, const pa_server_info *i, void *user
 	blog(LOG_INFO, "Server name: '%s %s'", i->server_name, i->server_version);
 
 	if (data->is_default) {
-		bfree(data->device);
-		if (data->input) {
-			data->device = bstrdup(i->default_source_name);
+		char *device = pulse_default_device(i, data->input);
 
-			blog(LOG_DEBUG, "Default input device: '%s'", data->device);
+		/* The server may have no default device, e.g. right after it
+		 * restarted. Keep the previous one then. */
+		if (device) {
+			bfree(data->device);
+			data->device = device;
+			blog(LOG_DEBUG, "Default %s device: '%s'", data->input ? "input" : "output", data->device);
 		} else {
-			char *monitor = bzalloc(strlen(i->default_sink_name) + 9);
-			strcat(monitor, i->default_sink_name);
-			strcat(monitor, ".monitor");
-
-			data->device = bstrdup(monitor);
-
-			blog(LOG_DEBUG, "Default output device: '%s'", data->device);
-			bfree(monitor);
+			blog(LOG_DEBUG, "No default device yet");
 		}
 	}
 

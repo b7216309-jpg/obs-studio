@@ -52,14 +52,16 @@ bool pulse_reconnect_on_ready(struct pulse_reconnect_state *state)
 
 char *pulse_default_device(const pa_server_info *info, bool input)
 {
+	const char *name = input ? info->default_source_name : info->default_sink_name;
 	char *device;
 
-	/* As pulse_server_info() did: assumes the server has a default device. */
+	if (!name)
+		return NULL;
 	if (input)
-		return bstrdup(info->default_source_name);
+		return bstrdup(name);
 
-	device = bzalloc(strlen(info->default_sink_name) + 9);
-	strcat(device, info->default_sink_name);
+	device = bzalloc(strlen(name) + 9);
+	strcat(device, name);
 	strcat(device, ".monitor");
 	return device;
 }
