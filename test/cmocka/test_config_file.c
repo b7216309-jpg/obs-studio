@@ -875,8 +875,8 @@ static void test_save_empty_config(void **state)
 
 	assert_non_null(c);
 
-	/* characterized, not endorsed: saving a config with no sections reports CONFIG_ERROR */
-	assert_int_equal(config_save(c), CONFIG_ERROR);
+	/* saving a config with no sections writes an empty file */
+	assert_int_equal(config_save(c), CONFIG_SUCCESS);
 	expect_file_empty(CREATE_PATH);
 	config_close(c);
 }
