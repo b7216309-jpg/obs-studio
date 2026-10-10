@@ -13,7 +13,9 @@
 //! child is reaped, and the exit status is cast through the platform
 //! `char`, so 255 becomes -1 where `char` is signed.
 
-use core::ffi::{c_char, c_int};
+use core::ffi::c_char;
+#[cfg(unix)]
+use core::ffi::c_int;
 use std::ffi::CString;
 
 /// Owned, null-terminated argument vector. Mirrors `struct os_process_args`:

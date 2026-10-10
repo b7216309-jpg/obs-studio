@@ -6,7 +6,7 @@
 //! surface is platform-neutral, so the unchanged `test_pipe` args cases
 //! run against Rust on every OS.
 
-use core::ffi::{CStr, c_char, c_int};
+use core::ffi::{CStr, c_char};
 use core::ptr;
 
 use crate::pipe::Args;
@@ -94,6 +94,7 @@ pub use process::*;
 mod process {
     use super::*;
     use crate::pipe::Pipe;
+    use core::ffi::c_int;
 
     /// # Safety
     ///
