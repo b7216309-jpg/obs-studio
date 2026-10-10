@@ -31,8 +31,14 @@ fn main() {
         .file("oracle/base_drive.c")
         .file(libobs.join("util/base-variadic.c"))
         .include(&libobs)
-        .std("c11")
-        .compile("obs_c_oracle");
+        .std("c11");
+    // base.c includes util/threading.h, which includes <pthread.h>. MSVC has
+    // none; libobs builds against the pthreads-win32 headers in
+    // deps/w32-pthreads, so the oracle does too. Only declarations are used.
+    if oracle.get_compiler().is_like_msvc() {
+        oracle.include(libobs.with_file_name("deps").join("w32-pthreads"));
+    }
+    oracle.compile("obs_c_oracle");
 
     // Test allocator, whole-archive so bmalloc/bfree resolve regardless of
     // link order relative to obs-util.
