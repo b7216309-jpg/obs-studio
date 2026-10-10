@@ -97,7 +97,7 @@ target_sources(
     util/bitstream.h
     $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:util/bmem.c>
     util/bmem.h
-    util/buffered-file-serializer.c
+    $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:util/buffered-file-serializer.c>
     util/buffered-file-serializer.h
     util/c99defs.h
     util/cf-lexer.c
