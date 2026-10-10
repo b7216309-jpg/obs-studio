@@ -60,6 +60,7 @@ fn main() {
         .file("oracle/profiler_snapshot.c")
         .file("oracle/bmem.c")
         .file("oracle/test_stubs.c")
+        .file("oracle/cf_tokenizer.c")
         .include(&libobs)
         // obs.h (for obs-hevc.c and obs-av1.c) needs the CMake-generated obsconfig.h.
         .include("oracle/obsconfig")
@@ -166,6 +167,8 @@ fn main() {
         "util/threading-posix.h",
         "util/threading-windows.c",
         "util/threading-windows.h",
+        "util/cf-tokenizer.c",
+        "util/cf-lexer.h",
     ] {
         println!("cargo:rerun-if-changed={}", libobs.join(header).display());
     }
