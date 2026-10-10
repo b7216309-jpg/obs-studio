@@ -9,6 +9,10 @@
 
 #include "cube-lut.h"
 
+/* Adobe Cube LUT Specification 1.0 */
+#define LUT_1D_SIZE_MAX 65536
+#define LUT_3D_SIZE_MAX 256
+
 static bool get_cube_entry(FILE *const file, float *const red, float *const green, float *const blue)
 {
 	bool data_found = false;
@@ -26,7 +30,7 @@ static bool get_cube_entry(FILE *const file, float *const red, float *const gree
 
 static void *load_1d_lut(FILE *const file, const uint32_t width, float red, float green, float blue)
 {
-	const uint32_t data_size = 4 * width * width * width * sizeof(struct half);
+	const size_t data_size = 4 * (size_t)width * sizeof(struct half);
 	struct half *values = bmalloc(data_size);
 
 	size_t offset = 0;
@@ -51,7 +55,7 @@ static void *load_1d_lut(FILE *const file, const uint32_t width, float red, floa
 
 static void *load_3d_lut(FILE *const file, const uint32_t width, float red, float green, float blue)
 {
-	const uint32_t data_size = 4 * width * width * width * sizeof(struct half);
+	const size_t data_size = 4 * (size_t)width * width * width * sizeof(struct half);
 	struct half *values = bmalloc(data_size);
 
 	size_t offset = 0;
@@ -114,6 +118,8 @@ void *load_cube_file(const char *const path, uint32_t *const width, struct vec3 
 		    domain_min->z >= domain_max->z) {
 			blog(LOG_WARNING, "Invalid CUBE LUT domain: [%f, %f], [%f, %f], [%f, %f]", domain_min->x,
 			     domain_max->x, domain_min->y, domain_max->y, domain_min->z, domain_max->z);
+		} else if (width_1d > LUT_1D_SIZE_MAX || width_3d > LUT_3D_SIZE_MAX) {
+			blog(LOG_WARNING, "CUBE LUT too large: LUT_1D_SIZE %u, LUT_3D_SIZE %u", width_1d, width_3d);
 		} else if (data_found) {
 			if (width_1d > 0) {
 				data = load_1d_lut(file, width_1d, red, green, blue);
