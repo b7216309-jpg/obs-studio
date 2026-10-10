@@ -5,7 +5,7 @@
 //! Unix and the wide Win32 APIs on Windows, same as `os_fopen`.
 
 use std::fs::File;
-use std::io::{Read, Seek, SeekFrom, Write};
+use std::io::{BufWriter, Read, Seek, SeekFrom, Write};
 use std::path::PathBuf;
 
 /// `enum serialize_seek_type` from `serializer.h`.
@@ -65,7 +65,7 @@ fn read_file(file: &mut File, buf: &mut [u8]) -> usize {
     got
 }
 
-fn write_file(file: &mut File, mut buf: &[u8]) -> usize {
+fn write_file<W: Write>(file: &mut W, mut buf: &[u8]) -> usize {
     let mut put = 0;
     while !buf.is_empty() {
         match file.write(buf) {
@@ -81,7 +81,7 @@ fn write_file(file: &mut File, mut buf: &[u8]) -> usize {
     put
 }
 
-pub fn seek_file(file: &mut File, offset: i64, kind: SeekType) -> i64 {
+pub fn seek_file<F: Seek>(file: &mut F, offset: i64, kind: SeekType) -> i64 {
     let from = match kind {
         SeekType::Start => {
             if offset < 0 {
@@ -98,7 +98,7 @@ pub fn seek_file(file: &mut File, offset: i64, kind: SeekType) -> i64 {
     }
 }
 
-pub fn file_pos(file: &mut File) -> i64 {
+pub fn file_pos<F: Seek>(file: &mut F) -> i64 {
     match file.stream_position() {
         Ok(pos) => pos as i64,
         Err(_) => -1,
@@ -131,17 +131,22 @@ impl Input {
 }
 
 pub struct Output {
-    file: Option<File>,
+    /// Buffered like `fwrite`: small writes succeed and a full disk is only
+    /// reported when the buffer is flushed.
+    file: Option<BufWriter<File>>,
     /// `(final path, temp path)`. `None` for a plain `init`.
     commit: Option<(PathBuf, PathBuf)>,
+    /// A write came up short; a safe save then keeps the original file.
+    failed: bool,
 }
 
 impl Output {
     pub fn create(path: &[u8]) -> Option<Self> {
         let path = path_from_bytes(path)?;
         Some(Self {
-            file: Some(File::create(path).ok()?),
+            file: Some(BufWriter::new(File::create(path).ok()?)),
             commit: None,
+            failed: false,
         })
     }
 
@@ -155,14 +160,21 @@ impl Output {
         let temp_path = path_from_bytes(&temp_file_name(path, ext))?;
         let file = File::create(&temp_path).ok()?;
         Some(Self {
-            file: Some(file),
+            file: Some(BufWriter::new(file)),
             commit: Some((final_path, temp_path)),
+            failed: false,
         })
     }
 
     pub fn write(&mut self, buf: &[u8]) -> usize {
         match self.file.as_mut() {
-            Some(file) => write_file(file, buf),
+            Some(file) => {
+                let put = write_file(file, buf);
+                if put < buf.len() {
+                    self.failed = true;
+                }
+                put
+            }
             None => 0,
         }
     }
@@ -183,13 +195,19 @@ impl Output {
 
     fn commit_now(&mut self) {
         if let Some(mut file) = self.file.take() {
-            let _ = file.flush();
+            if file.flush().is_err() {
+                self.failed = true;
+            }
             drop(file);
         }
         if let Some((final_path, temp_path)) = self.commit.take() {
-            // C ignores both return codes: unlink the old file, then rename.
-            let _ = std::fs::remove_file(&final_path);
-            let _ = std::fs::rename(&temp_path, &final_path);
+            // As C (#71): replace only after a clean write, and never unlink
+            // the destination first. rename replaces atomically on Unix and
+            // uses MoveFileExW(MOVEFILE_REPLACE_EXISTING) on Windows. C also
+            // logs a warning on failure; the safe core has no logger.
+            if !self.failed {
+                let _ = std::fs::rename(&temp_path, &final_path);
+            }
         }
     }
 }
