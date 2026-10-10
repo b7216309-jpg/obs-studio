@@ -27,6 +27,10 @@ fn find_startcode_internal(data: &[u8]) -> usize {
 /// folded in, and never one before the start of `data`.
 #[must_use]
 pub fn find_startcode(data: &[u8]) -> usize {
-    let _ = (data, find_startcode_internal);
-    todo!()
+    let out = find_startcode_internal(data);
+    if 0 < out && out < data.len() && data[out - 1] == 0 {
+        out - 1
+    } else {
+        out
+    }
 }

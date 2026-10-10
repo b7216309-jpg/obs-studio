@@ -10,6 +10,7 @@ scripting APIs) while its internals are rewritten in Rust. Every port follows
 |---|---|
 | `obs-util/` | Ports of `libobs/util/*`: safe cores at the crate root, C ABI shims in `src/ffi/` |
 | `obs-graphics/` | Ports of `libobs/graphics/*` |
+| `obs-codec/` | Ports of the libobs codec bitstream helpers (`obs-nal.c`; AVC, HEVC and AV1 to follow) |
 | `obs-c-oracle/` | Test-only: original C sources compiled with `oracle_` symbols for layout and differential tests |
 | `libobs-rust/` | The single staticlib linked into libobs when `ENABLE_RUST_LIBOBS=ON` |
 | `obs-stream-rust/` | Standalone CLI that starts, stops and inspects OBS streaming over obs-websocket v5 (released as `obs-stream-rust` binaries) |
@@ -58,6 +59,7 @@ tests and run them with `ctest`.
 | `libobs/util/base.c` | `obs-util::base` | `blog`, `blogva`, and `bcrash` stay in `util/base-variadic.c` (stable Rust cannot define C variadics). The Rust core owns the handler slots. Updates are mutex-ordered and the lock is dropped before the handler runs; C used plain stores. |
 | `libobs/graphics/vec3.c` | `obs-graphics::vec3` | No intentional differences. `Vec3` keeps the SSE `w` lane because `vec3_dot` multiplies it. `vec3_rand` calls libobs `rand_float`, which stays C. Header-inline helpers stay C. |
 | `libobs/graphics/vec4.c` | `obs-graphics::vec4` | No intentional differences. `Vec4::dot` sums in the SSE `vec4_dot` order. Header-inline helpers stay C. |
+| `libobs/obs-nal.c` | `obs-codec::nal` | No intentional differences. The C word-at-a-time search is replaced by a byte scan with the same result at any alignment; a start code in the last three bytes is not reported, as in C. |
 
 ## obs-stream-rust
 
