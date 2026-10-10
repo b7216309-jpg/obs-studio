@@ -213,6 +213,7 @@ version = "0.1.0"
 dependencies = [
  "obs-codec",
  "obs-graphics",
+ "obs-media-io",
  "obs-util",
 ]
 
@@ -263,6 +264,14 @@ name = "obs-graphics"
 version = "0.1.0"
 dependencies = [
  "libc",
+ "obs-c-oracle",
+ "proptest",
+]
+
+[[package]]
+name = "obs-media-io"
+version = "0.1.0"
+dependencies = [
  "obs-c-oracle",
  "proptest",
 ]

@@ -1,0 +1,109 @@
+//! Types from `libobs/media-io/video-io.h`.
+
+use core::ffi::c_int;
+
+/// `enum video_format`, in header order. The discriminants are the
+/// header's values; the C ABI passes the enum as a `c_int`, converted with
+/// [`video_format_to_c`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum VideoFormat {
+    None = 0,
+
+    // planar 4:2:0 formats
+    I420 = 1,
+    Nv12 = 2,
+
+    // packed 4:2:2 formats
+    Yvyu = 3,
+    Yuy2 = 4,
+    Uyvy = 5,
+
+    // packed uncompressed formats
+    Rgba = 6,
+    Bgra = 7,
+    Bgrx = 8,
+    Y800 = 9,
+
+    // planar 4:4:4
+    I444 = 10,
+
+    // more packed uncompressed formats
+    Bgr3 = 11,
+
+    // planar 4:2:2
+    I422 = 12,
+
+    // planar 4:2:0 with alpha
+    I40a = 13,
+
+    // planar 4:2:2 with alpha
+    I42a = 14,
+
+    // planar 4:4:4 with alpha
+    Yuva = 15,
+
+    // packed 4:4:4 with alpha
+    Ayuv = 16,
+
+    // planar 4:2:0 format, 10 bpp
+    I010 = 17,
+    P010 = 18,
+
+    // planar 4:2:2 format, 10 bpp
+    I210 = 19,
+
+    // planar 4:4:4 format, 12 bpp
+    I412 = 20,
+
+    // planar 4:4:4:4 format, 12 bpp
+    Ya2l = 21,
+
+    // planar 4:2:2 format, 16 bpp
+    P216 = 22,
+
+    // planar 4:4:4 format, 16 bpp
+    P416 = 23,
+
+    // packed 4:2:2 format, 10 bpp
+    V210 = 24,
+
+    // packed uncompressed 10-bit format
+    R10l = 25,
+}
+
+impl VideoFormat {
+    /// Every variant, in header order.
+    pub const ALL: [Self; 26] = [
+        Self::None,
+        Self::I420,
+        Self::Nv12,
+        Self::Yvyu,
+        Self::Yuy2,
+        Self::Uyvy,
+        Self::Rgba,
+        Self::Bgra,
+        Self::Bgrx,
+        Self::Y800,
+        Self::I444,
+        Self::Bgr3,
+        Self::I422,
+        Self::I40a,
+        Self::I42a,
+        Self::Yuva,
+        Self::Ayuv,
+        Self::I010,
+        Self::P010,
+        Self::I210,
+        Self::I412,
+        Self::Ya2l,
+        Self::P216,
+        Self::P416,
+        Self::V210,
+        Self::R10l,
+    ];
+}
+
+/// The C value of `enum video_format` for `format`.
+pub fn video_format_to_c(format: VideoFormat) -> c_int {
+    format as c_int
+}
