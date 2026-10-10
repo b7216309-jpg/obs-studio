@@ -42,11 +42,10 @@ fn literal_to_str_test() {
     // explicit count shorter than the text
     assert_eq!(lit(b"\"abc\"zzz", 5).as_deref(), Some(&b"abc"[..]));
 
-    // quirk: the remaining-length counter is decremented once per output
-    // iteration, not once per consumed char, so after an escape sequence
-    // the closing quote leaks into the result. Characterized, not endorsed.
-    assert_eq!(lit(b"\"a\\nb\"", 0).as_deref(), Some(&b"a\nb\""[..]));
-    assert_eq!(lit(b"\"\\t\"", 0).as_deref(), Some(&b"\t\""[..]));
+    // escapes consume several chars, yet copying still stops at the
+    // closing quote
+    assert_eq!(lit(b"\"a\\nb\"", 0).as_deref(), Some(&b"a\nb"[..]));
+    assert_eq!(lit(b"\"\\t\"", 0).as_deref(), Some(&b"\t"[..]));
 
     // invalid literals
     assert_eq!(lit(b"abc", 0), None);
@@ -242,7 +241,7 @@ fn terminator_points_at_the_end() {
 #[test]
 fn literal_escapes() {
     let all = b"\"\\'\\\"\\?\\\\\\a\\b\\f\\n\\r\\t\\v\"";
-    // one output char per escape; the budget then lets the tail through
+    // one output char per escape, then the zero fill
     assert_eq!(&lit(all, 0).unwrap()[..11], b"'\"?\\\x07\x08\x0c\n\r\t\x0b");
 
     // \0 ends the C string
@@ -253,12 +252,12 @@ fn literal_escapes() {
         cf_literal_to_str(b"\"\\x41BC\"", 0, ULONG).unwrap()[0],
         0xBC
     );
-    assert_eq!(lit(b"\"\\x41\"", 0).as_deref(), Some(&b"A\""[..]));
+    assert_eq!(lit(b"\"\\x41\"", 0).as_deref(), Some(&b"A"[..]));
 
     // octal starts at the second digit: "\101" parses "01"
     assert_eq!(cf_literal_to_str(b"\"\\101\"", 0, ULONG).unwrap()[0], 0o1);
     // an unknown escape writes nothing
-    assert_eq!(lit(b"\"\\qz\"", 0).as_deref(), Some(&b"z\""[..]));
+    assert_eq!(lit(b"\"\\qz\"", 0).as_deref(), Some(&b"z"[..]));
 }
 
 #[test]

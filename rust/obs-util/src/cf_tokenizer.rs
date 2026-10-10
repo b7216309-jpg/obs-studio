@@ -436,9 +436,9 @@ fn strtoul_low_byte(at: impl Fn(usize) -> u8, mut i: usize, base: u32, ulong_bit
 /// decides when `\x` and octal escapes overflow to 0xff.
 ///
 /// Returns the zero-filled `count - 1` byte buffer C allocates, or `None`
-/// if the text is not a quoted literal. Characterized, not endorsed: one
-/// input character is budgeted per output character, so after an escape
-/// the closing quote is copied too; `\x` consumes as many hex digits as
+/// if the text is not a quoted literal. Copying stops at the closing quote
+/// (an escape consumes several input bytes but writes at most one, so the
+/// result always fits). Characterized, not endorsed: `\x` consumes as many hex digits as
 /// `strtoul` takes but skips exactly two, and an octal escape starts
 /// parsing at its second digit and skips three.
 pub fn cf_literal_to_str(literal: &[u8], count: usize, ulong_bits: u32) -> Option<Vec<u8>> {
@@ -456,17 +456,12 @@ pub fn cf_literal_to_str(literal: &[u8], count: usize, ulong_bits: u32) -> Optio
         return None;
     }
 
-    let mut remaining = n - 1;
-    let mut out = vec![0u8; remaining];
+    let end = n - 1; // the closing quote
+    let mut out = vec![0u8; n - 1];
     let (mut src, mut dst) = (1, 0);
 
-    // C: while (*temp_src && --count > 0)
-    while at(src) != 0 {
-        remaining -= 1;
-        if remaining == 0 {
-            break;
-        }
-
+    // C: while (*temp_src && temp_src < end)
+    while at(src) != 0 && src < end {
         if at(src) != b'\\' {
             out[dst] = at(src);
             dst += 1;
