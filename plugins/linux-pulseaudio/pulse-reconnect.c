@@ -18,7 +18,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <pulse/timeval.h>
 
 #include <util/bmem.h>
-#include <util/c99defs.h>
 
 #include "pulse-reconnect.h"
 
@@ -68,7 +67,9 @@ char *pulse_default_device(const pa_server_info *info, bool input)
 
 bool pulse_restart_should_retry(uint32_t *attempts)
 {
-	/* Not implemented yet: streams are never restarted. */
-	UNUSED_PARAMETER(attempts);
+	if (++*attempts < PULSE_RESTART_MAX_ATTEMPTS)
+		return true;
+
+	*attempts = 0;
 	return false;
 }
