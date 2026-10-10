@@ -33,6 +33,9 @@ fn main() {
         .file("oracle/file_serializer.c")
         .file("oracle/file_serializer_host.c")
         .file(libobs.join("util/dstr.c"))
+        // dstr.c's conversions: platform.c's verbatim, over the real utf8.c.
+        .file("oracle/platform_conv_host.c")
+        .file(libobs.join("util/utf8.c"))
         .include(&libobs)
         .std("c11");
     // base.c includes util/threading.h, which includes <pthread.h>. MSVC has
@@ -77,6 +80,9 @@ fn main() {
         "util/file-serializer.h",
         "util/dstr.c",
         "util/dstr.h",
+        "util/platform.c",
+        "util/utf8.c",
+        "util/utf8.h",
         "util/platform.h",
     ] {
         println!("cargo:rerun-if-changed={}", libobs.join(header).display());
