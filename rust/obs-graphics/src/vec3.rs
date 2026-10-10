@@ -38,79 +38,76 @@ impl Vec3 {
     /// `x`, `y`, `z` of `v`, with `w` cleared (`vec3_from_vec4`).
     #[must_use]
     pub const fn from_vec4(v: Vec4) -> Self {
-        let _ = v;
-        todo!()
+        Self::new(v.x, v.y, v.z)
     }
 
     /// Dot product over all four lanes, summed in the order of the SSE
     /// `vec3_dot`.
     #[must_use]
     pub fn dot(self, other: Self) -> f32 {
-        let _ = (self, other);
-        todo!()
+        let m0 = self.x * other.x;
+        let m1 = self.y * other.y;
+        let m2 = self.z * other.z;
+        let m3 = self.w * other.w;
+        (m3 + m1) + (m2 + m0)
     }
 
     /// Lane-wise difference with `w` cleared (`vec3_sub`).
     #[must_use]
     pub fn sub_xyz(self, other: Self) -> Self {
-        let _ = (self, other);
-        todo!()
+        Self::new(self.x - other.x, self.y - other.y, self.z - other.z)
     }
 
     /// Every lane times `f`, `w` included (`vec3_mulf`).
     #[must_use]
     pub fn mulf(self, f: f32) -> Self {
-        let _ = (self, f);
-        todo!()
+        Self::with_w(self.x * f, self.y * f, self.z * f, self.w * f)
     }
 
     /// Signed distance from `p` (`vec3_plane_dist`).
     #[must_use]
     pub fn plane_dist(self, p: &Plane) -> f32 {
-        let _ = (self, p);
-        todo!()
+        self.dot(p.dir) - p.dist
     }
 
     /// Dot product with each axis of `m`; `t` is ignored (`vec3_rotate`).
     #[must_use]
     pub fn rotate(self, m: &Matrix3) -> Self {
-        let _ = (self, m);
-        todo!()
+        Self::new(self.dot(m.x), self.dot(m.y), self.dot(m.z))
     }
 
     /// As a point (`w` = 1) through `m`, then back to 3D (`vec3_transform`).
     #[must_use]
     pub fn transform(self, m: &Matrix4) -> Self {
-        let _ = (self, m);
-        todo!()
+        Self::from_vec4(Vec4::from_xyz(self.x, self.y, self.z).transform(m))
     }
 
     /// Subtract `m.t`, then rotate by the axes of `m` (`vec3_transform3x4`).
     #[must_use]
     pub fn transform3x4(self, m: &Matrix3) -> Self {
-        let _ = (self, m);
-        todo!()
+        let temp = self.sub_xyz(m.t);
+        Self::new(temp.dot(m.x), temp.dot(m.y), temp.dot(m.z))
     }
 
     /// Reflection through the plane `p` (`vec3_mirror`).
     #[must_use]
     pub fn mirror(self, p: &Plane) -> Self {
-        let _ = (self, p);
-        todo!()
+        self.sub_xyz(p.dir.mulf(self.plane_dist(p) * 2.0))
     }
 
     /// Reflection against the direction `vec` (`vec3_mirrorv`).
     #[must_use]
     pub fn mirrorv(self, vec: Self) -> Self {
-        let _ = (self, vec);
-        todo!()
+        self.sub_xyz(vec.mulf(self.dot(vec) * 2.0))
     }
 
     /// `x`, `y`, `z` from three calls to `next`, in that order
     /// (`vec3_rand`, where `next` is libobs `rand_float`).
     #[must_use]
-    pub fn rand(next: impl FnMut() -> f32) -> Self {
-        let _ = next;
-        todo!()
+    pub fn rand(mut next: impl FnMut() -> f32) -> Self {
+        let x = next();
+        let y = next();
+        let z = next();
+        Self::new(x, y, z)
     }
 }
