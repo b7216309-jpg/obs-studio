@@ -61,6 +61,12 @@ fn main() {
         .file("oracle/bmem.c")
         .file("oracle/test_stubs.c")
         .file("oracle/cf_tokenizer.c")
+        .file("oracle/pipe_args.c");
+    // Unix-only: pipe-posix.c needs <spawn.h>.
+    if std::env::var_os("CARGO_CFG_UNIX").is_some() {
+        oracle.file("oracle/pipe_posix.c");
+    }
+    oracle
         .include(&libobs)
         // obs.h (for obs-hevc.c and obs-av1.c) needs the CMake-generated obsconfig.h.
         .include("oracle/obsconfig")
@@ -148,6 +154,9 @@ fn main() {
         "util/threading.h",
         "util/file-serializer.c",
         "util/file-serializer.h",
+        "util/pipe.c",
+        "util/pipe.h",
+        "util/pipe-posix.c",
         "util/dstr.c",
         "util/dstr.h",
         "util/platform.c",

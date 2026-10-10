@@ -1,0 +1,488 @@
+//! Tier 3: the pipe C ABI against the original C, compiled as an oracle.
+//!
+//! Excluded inputs (C would crash; the shim is null-safe instead):
+//! - A null command to `create`, null `args` to `create2`/`add_arg`/
+//!   `get_argc`/`get_argv`, and a null `arg`. Covered for the Rust side
+//!   only in `c_abi_nulls_are_safe`.
+//!
+//! Other notes, not exclusions:
+//! - `argv` with an interior NUL passed to `create2`. Both sides truncate
+//!   the argument at the NUL (`bstrdup`), but the kernel then execs a
+//!   different (truncated) program path, so spawn success can differ for
+//!   reasons outside the port. Args-list parity (with NULs) is covered in
+//!   `args_match_oracle`; spawn parity uses NUL-free argv.
+//! - A signaled child. C `destroy` falls through to returning the `waitpid`
+//!   pid, and the core returns the same pid (`Child::id`). The two sides
+//!   spawn distinct children, so cross-side equality is unassertable;
+//!   `signaled_child_destroys_to_pid` pins each side to a positive pid,
+//!   and Tier 1 pins the exact pid on the Rust side.
+//! - A write to a dead pipe. In a C-main process (libobs) both sides die
+//!   on SIGPIPE identically: disposition is a process property, and Rust
+//!   `std` only ignores SIGPIPE in processes whose `main` is Rust.
+//!   Neither side touches the child's signal mask (`posix_spawn` with no
+//!   attributes and `Command` both inherit it). `dead_pipe_write_matches`
+//!   pins the short-count path, which is what both sides report wherever
+//!   SIGPIPE is ignored (as in this test binary).
+//! - Chunk boundaries of partial reads. Both sides return one short read
+//!   per call, but scheduling decides the sizes, so only the concatenation
+//!   and the return values are compared, never the chunking.
+//! - `stderr` of a write-mode pipe. Draining it to EOF would block until
+//!   the child exits, but the child waits on stdin, which only closes at
+//!   destroy: both sides would deadlock identically, so like the cmocka
+//!   test, write mode is compared on write counts and exit codes only.
+//! - `add_argf` formatting itself. Both production paths format with
+//!   `vsnprintf` (the oracle in C, the Rust side through
+//!   `util/pipe-variadic.c`), so the differential test pins the arg-list
+//!   result for a table of formats with real varargs on the oracle side.
+//! - I/O temp dirs (testing-policy: separate dirs per side) do not apply:
+//!   no test touches the filesystem except `/dev/null`.
+//!
+//! Both `os_process_args` and `os_process_pipe` are opaque in `pipe.h`, so
+//! this port adds no `#[repr(C)]` struct and needs no layout test.
+//!
+//! Reminder: the mutation check (break the core, see this file fail) is done
+//! once per port, not on every change.
+
+use core::ffi::c_int;
+use std::ffi::{CStr, CString};
+
+use obs_c_oracle as _;
+use obs_c_oracle::pipe as oracle;
+use obs_util::ffi::pipe as shim;
+use obs_util::pipe::Args;
+use proptest::prelude::*;
+
+fn cstring(bytes: &[u8]) -> CString {
+    let end = bytes.iter().position(|&b| b == 0).unwrap_or(bytes.len());
+    CString::new(&bytes[..end]).expect("truncated at NUL")
+}
+
+/// Build the same argv on both sides; returns `(oracle_args, shim_args)`.
+/// `items[0]` is the executable, like `os_process_args_create`.
+fn make_args(items: &[Vec<u8>]) -> (*mut oracle::OracleArgs, *mut Args) {
+    assert!(!items.is_empty());
+    let first = cstring(&items[0]);
+    // SAFETY: formatting a live C string; pointers stay alive for the call.
+    let oargs = unsafe { oracle::oracle_os_process_args_create(first.as_ptr()) };
+    assert!(!oargs.is_null());
+    let sargs = unsafe { shim::os_process_args_create(first.as_ptr()) };
+    assert!(!sargs.is_null());
+    for item in &items[1..] {
+        let arg = cstring(item);
+        unsafe {
+            oracle::oracle_os_process_args_add_arg(oargs, arg.as_ptr());
+            shim::os_process_args_add_arg(sargs, arg.as_ptr());
+        }
+    }
+    (oargs, sargs)
+}
+
+fn free_args(oargs: *mut oracle::OracleArgs, sargs: *mut Args) {
+    // SAFETY: both came from their create function.
+    unsafe {
+        oracle::oracle_os_process_args_destroy(oargs);
+        shim::os_process_args_destroy(sargs);
+    }
+}
+
+/// `(argc, argv bytes, argv[argc] is null)`.
+fn snapshot_args(oargs: *mut oracle::OracleArgs, sargs: *mut Args) -> (Vec<Vec<u8>>, Vec<Vec<u8>>) {
+    // SAFETY: both are live; argv stays valid (no mutation during read).
+    unsafe {
+        let oargv = oracle::oracle_os_process_args_get_argv(oargs);
+        let sargv = shim::os_process_args_get_argv(sargs);
+        assert!(!oargv.is_null() && !sargv.is_null());
+        let oargc = oracle::oracle_os_process_args_get_argc(oargs);
+        let sargc = shim::os_process_args_get_argc(sargs);
+        assert_eq!(oargc, sargc);
+        let mut ovec = Vec::with_capacity(oargc);
+        let mut svec = Vec::with_capacity(sargc);
+        for i in 0..oargc {
+            let op = *oargv.add(i);
+            let sp = *sargv.add(i);
+            assert!(!op.is_null() && !sp.is_null());
+            ovec.push(CStr::from_ptr(op).to_bytes().to_vec());
+            svec.push(CStr::from_ptr(sp).to_bytes().to_vec());
+        }
+        assert!((*oargv.add(oargc)).is_null());
+        assert!((*sargv.add(sargc)).is_null());
+        (ovec, svec)
+    }
+}
+
+proptest! {
+    /// Random argv (including NULs, which both sides truncate like
+    /// `bstrdup`) produce identical arg lists and NULL terminators.
+    #[test]
+    fn args_match_oracle(argv in proptest::collection::vec(
+        proptest::collection::vec(any::<u8>(), 0..24),
+        1..8,
+    )) {
+        let (oargs, sargs) = make_args(&argv);
+        let (oargsnap, sargsnap) = snapshot_args(oargs, sargs);
+        free_args(oargs, sargs);
+        let expected: Vec<Vec<u8>> = argv
+            .iter()
+            .map(|a| {
+                let end = a.iter().position(|&b| b == 0).unwrap_or(a.len());
+                a[..end].to_vec()
+            })
+            .collect();
+        prop_assert_eq!(oargsnap, expected.clone());
+        prop_assert_eq!(sargsnap, expected);
+    }
+}
+
+/// `add_argf` with real varargs on the oracle side; the Rust side stores the
+/// same formatted bytes (production formats both with `vsnprintf`).
+#[test]
+fn add_argf_matches_oracle() {
+    // (int, string, expected formatted bytes)
+    let cases: &[(c_int, &[u8], &[u8])] = &[
+        (42, b"abc", b"42-abc"),
+        (0, b"", b"0-"),
+        (-7, b"x", b"-7-x"),
+        (i32::MAX, b"end", b"2147483647-end"),
+    ];
+    let fmt = c"%d-%s";
+    for (num, text, expected) in cases {
+        let ctext = cstring(text);
+        let oargs = unsafe { oracle::oracle_os_process_args_create(c"/bin/echo".as_ptr()) };
+        let sargs = unsafe { shim::os_process_args_create(c"/bin/echo".as_ptr()) };
+        assert!(!oargs.is_null() && !sargs.is_null());
+        unsafe {
+            oracle::oracle_os_process_args_add_argf(oargs, fmt.as_ptr(), *num, ctext.as_ptr());
+        }
+        unsafe {
+            shim::os_process_args_add_arg(sargs, cstring(expected).as_ptr());
+        }
+        // The core half of add_argf stores pre-formatted bytes; assert it
+        // lands in the same argv slot the oracle formatted into.
+        let mut fargs = Args::new(b"/bin/echo");
+        fargs.add_formatted(expected);
+        assert_eq!(fargs.argc(), 2);
+        assert_eq!(fargs.arg(1), Some(*expected));
+        let (oargsnap, sargsnap) = snapshot_args(oargs, sargs);
+        free_args(oargs, sargs);
+        assert_eq!(oargsnap.len(), 2);
+        assert_eq!(sargsnap, oargsnap);
+        assert_eq!(sargsnap[1].as_slice(), *expected);
+    }
+}
+
+/// Null handles are safe on the Rust side. Dereferencing null `args` or a
+/// null command is C UB and excluded; the remaining null cases are
+/// null-checked in C too, so they run against the oracle as well.
+#[test]
+fn c_abi_nulls_are_safe() {
+    use core::ptr;
+    unsafe {
+        assert!(shim::os_process_args_create(ptr::null()).is_null());
+        shim::os_process_args_add_arg(ptr::null_mut(), c"x".as_ptr());
+        let live = shim::os_process_args_create(c"p".as_ptr());
+        assert!(!live.is_null());
+        shim::os_process_args_add_arg(live, ptr::null());
+        shim::os_process_args_destroy(live);
+        assert_eq!(shim::os_process_args_get_argc(ptr::null()), 0);
+        assert!(shim::os_process_args_get_argv(ptr::null()).is_null());
+        shim::os_process_args_destroy(ptr::null_mut());
+        #[cfg(unix)]
+        {
+            use obs_util::pipe::Pipe;
+            let mut scratch = [0u8; 4];
+            assert!(shim::os_process_pipe_create(ptr::null(), c"r".as_ptr()).is_null());
+            assert!(shim::os_process_pipe_create(c"exit 0".as_ptr(), ptr::null()).is_null());
+            assert!(shim::os_process_pipe_create2(ptr::null(), c"r".as_ptr()).is_null());
+            assert_eq!(shim::os_process_pipe_destroy(ptr::null_mut()), 0);
+            assert_eq!(
+                shim::os_process_pipe_read(ptr::null_mut(), scratch.as_mut_ptr(), 4),
+                0
+            );
+            assert_eq!(
+                shim::os_process_pipe_read_err(ptr::null_mut(), scratch.as_mut_ptr(), 4),
+                0
+            );
+            assert_eq!(
+                shim::os_process_pipe_write(ptr::null_mut(), scratch.as_ptr(), 4),
+                0
+            );
+            assert_eq!(
+                oracle::oracle_os_process_pipe_read(ptr::null_mut(), scratch.as_mut_ptr(), 4),
+                0
+            );
+            assert_eq!(
+                oracle::oracle_os_process_pipe_read_err(ptr::null_mut(), scratch.as_mut_ptr(), 4),
+                0
+            );
+            assert_eq!(
+                oracle::oracle_os_process_pipe_write(ptr::null_mut(), scratch.as_ptr(), 4),
+                0
+            );
+            assert_eq!(oracle::oracle_os_process_pipe_destroy(ptr::null_mut()), 0);
+            // A null `data` pointer yields 0 instead of crashing in
+            // `fread`/`fwrite`.
+            let mut pipe = Pipe::create(Some(b"exit 0"), b"r").expect("spawn sh");
+            assert_eq!(pipe.read(&mut []), 0);
+            assert_eq!(pipe.destroy(), 0);
+            assert!(Pipe::create(None, b"r").is_none());
+        }
+    }
+}
+
+#[cfg(unix)]
+mod process {
+    use super::*;
+    use obs_c_oracle::pipe::OraclePipe;
+    use obs_util::pipe::Pipe as ShimPipe;
+
+    /// Drain one stream to EOF; returns the concatenated bytes.
+    fn drain_oracle(
+        pp: *mut OraclePipe,
+        reader: unsafe extern "C" fn(*mut OraclePipe, *mut u8, usize) -> usize,
+    ) -> Vec<u8> {
+        let mut out = Vec::new();
+        let mut chunk = [0u8; 32];
+        loop {
+            // SAFETY: `pp` is live; `chunk` covers its length.
+            let n = unsafe { reader(pp, chunk.as_mut_ptr(), chunk.len()) };
+            if n == 0 {
+                break;
+            }
+            out.extend_from_slice(&chunk[..n]);
+        }
+        out
+    }
+
+    fn drain_shim(pipe: &mut ShimPipe, reader: fn(&mut ShimPipe, &mut [u8]) -> usize) -> Vec<u8> {
+        let mut out = Vec::new();
+        let mut chunk = [0u8; 32];
+        loop {
+            let n = reader(pipe, &mut chunk);
+            if n == 0 {
+                break;
+            }
+            out.extend_from_slice(&chunk[..n]);
+        }
+        out
+    }
+
+    fn spawn_oracle(cmd: &CStr, type_: &CStr) -> *mut OraclePipe {
+        // SAFETY: live C strings.
+        unsafe { oracle::oracle_os_process_pipe_create(cmd.as_ptr(), type_.as_ptr()) }
+    }
+
+    fn spawn_shim(cmd: &[u8], type_: &[u8]) -> Option<ShimPipe> {
+        ShimPipe::create(Some(cmd), type_)
+    }
+
+    /// Same shell command on both sides; stdout, stderr and the destroy
+    /// code must match. Chunk boundaries are deliberately not compared
+    /// (scheduling decides them); concatenations are.
+    ///
+    /// Deadlock rule: `stderr` is drained to EOF only when the child exits
+    /// on its own (read mode). A write-mode child waits on stdin, so
+    /// draining its `stderr` first would block forever on both sides; like
+    /// the cmocka test, write mode writes a payload instead and never
+    /// touches `stderr`.
+    fn check_command(cmd: &[u8], type_: &[u8]) {
+        let cc = cstring(cmd);
+        let ct = cstring(type_);
+        let read_mode = type_.first().copied() == Some(b'r');
+        let opp = spawn_oracle(&cc, &ct);
+        assert!(!opp.is_null(), "oracle failed to spawn {cmd:?}");
+        let mut spp = spawn_shim(cmd, type_).expect("shim failed to spawn");
+        if read_mode {
+            let o_out = drain_oracle(opp, oracle::oracle_os_process_pipe_read);
+            let s_out = drain_shim(&mut spp, ShimPipe::read);
+            let o_err = drain_oracle(opp, oracle::oracle_os_process_pipe_read_err);
+            let s_err = drain_shim(&mut spp, ShimPipe::read_err);
+            // SAFETY: both pipes are live.
+            let o_code = unsafe { oracle::oracle_os_process_pipe_destroy(opp) };
+            let s_code = spp.destroy();
+            assert_eq!(s_out, o_out, "stdout of {cmd:?}");
+            assert_eq!(s_err, o_err, "stderr of {cmd:?}");
+            assert_eq!(s_code, o_code, "exit code of {cmd:?}");
+        } else {
+            let payload = b"parity payload";
+            // SAFETY: `opp` is live; `payload` covers its length.
+            let o_wrote = unsafe {
+                oracle::oracle_os_process_pipe_write(opp, payload.as_ptr(), payload.len())
+            };
+            let s_wrote = spp.write(payload);
+            // SAFETY: both pipes are live.
+            let o_code = unsafe { oracle::oracle_os_process_pipe_destroy(opp) };
+            let s_code = spp.destroy();
+            assert_eq!(s_wrote, o_wrote, "write count of {cmd:?}");
+            assert_eq!(s_wrote, payload.len());
+            assert_eq!(s_code, o_code, "exit code of {cmd:?}");
+        }
+    }
+
+    #[test]
+    fn process_commands_match_oracle() {
+        for (cmd, type_) in [
+            (&b"printf 'hello'"[..], &b"r"[..]),
+            (b"exit 3", b"r"),
+            (b"exit 255", b"r"),
+            (b"exit 0", b"r"),
+            (b"printf out; printf err 1>&2; exit 5", b"r"),
+            (b"cat > /dev/null", b"w"),
+            (b"cat > /dev/null", b"x"),
+            (b"printf ''", b"r"),
+        ] {
+            check_command(cmd, type_);
+        }
+    }
+
+    /// `create2` with a NUL-free argv on both sides.
+    #[test]
+    fn process_create2_matches_oracle() {
+        let items: &[&[u8]] = &[b"/bin/sh", b"-c", b"printf abc; printf err 1>&2"];
+        let owned: Vec<Vec<u8>> = items.iter().map(|s| s.to_vec()).collect();
+        let (oargs, sargs) = make_args(&owned);
+        // SAFETY: live args and C strings.
+        let opp = unsafe { oracle::oracle_os_process_pipe_create2(oargs, c"r".as_ptr()) };
+        assert!(!opp.is_null());
+        // SAFETY: `sargs` is a live shim args.
+        let spp = unsafe { shim::os_process_pipe_create2(sargs, c"r".as_ptr()) };
+        assert!(!spp.is_null());
+        let o_out = drain_oracle(opp, oracle::oracle_os_process_pipe_read);
+        // SAFETY: `spp` is a live shim pipe.
+        let (s_out, s_err, s_code) = unsafe {
+            let mut buf = [0u8; 64];
+            let mut out = Vec::new();
+            loop {
+                let n = shim::os_process_pipe_read(spp, buf.as_mut_ptr(), buf.len());
+                if n == 0 {
+                    break;
+                }
+                out.extend_from_slice(&buf[..n]);
+            }
+            let mut err = Vec::new();
+            loop {
+                let n = shim::os_process_pipe_read_err(spp, buf.as_mut_ptr(), buf.len());
+                if n == 0 {
+                    break;
+                }
+                err.extend_from_slice(&buf[..n]);
+            }
+            let code = shim::os_process_pipe_destroy(spp);
+            (out, err, code)
+        };
+        let o_err = drain_oracle(opp, oracle::oracle_os_process_pipe_read_err);
+        // SAFETY: `opp` is live.
+        let o_code = unsafe { oracle::oracle_os_process_pipe_destroy(opp) };
+        free_args(oargs, sargs);
+        assert_eq!(s_out, o_out);
+        assert_eq!(s_out, b"abc");
+        assert_eq!(s_err, o_err);
+        assert_eq!(s_err, b"err");
+        assert_eq!(s_code, o_code);
+    }
+
+    /// A signaled child destroys to its own pid on both sides (the two
+    /// children have distinct pids, so cross-side equality is unassertable;
+    /// Tier 1 pins the exact pid on the Rust side).
+    #[test]
+    fn signaled_child_destroys_to_pid() {
+        for _ in 0..4 {
+            let opp = spawn_oracle(&cstring(b"kill -KILL $$"), &cstring(b"r"));
+            assert!(!opp.is_null());
+            let spp = spawn_shim(b"kill -KILL $$", b"r").expect("spawn");
+            // SAFETY: both pipes are live.
+            let o_code = unsafe { oracle::oracle_os_process_pipe_destroy(opp) };
+            let s_code = spp.destroy();
+            assert!(o_code > 0, "oracle signaled code");
+            assert!(s_code > 0, "shim signaled code");
+        }
+    }
+
+    /// A write to a dead pipe reports a short count on both sides (this
+    /// binary ignores SIGPIPE, like any Rust-main process; in a C-main
+    /// process both sides die on SIGPIPE identically). Sync is via `stderr`
+    /// EOF, which also proves the child is gone, so the EPIPE is
+    /// deterministic with no sleeps.
+    #[test]
+    fn dead_pipe_write_matches_oracle() {
+        let cmd = b"echo closed 1>&2; exec 0<&-";
+        let opp = spawn_oracle(&cstring(cmd), &cstring(b"w"));
+        assert!(!opp.is_null());
+        let mut spp = spawn_shim(cmd, b"w").expect("spawn");
+        let o_err = drain_oracle(opp, oracle::oracle_os_process_pipe_read_err);
+        let s_err = drain_shim(&mut spp, ShimPipe::read_err);
+        assert_eq!(o_err, b"closed\n");
+        assert_eq!(s_err, b"closed\n");
+        let big = vec![0xABu8; 1 << 20];
+        // SAFETY: `opp` is live; `big` covers its length.
+        let o_wrote = unsafe { oracle::oracle_os_process_pipe_write(opp, big.as_ptr(), big.len()) };
+        let s_wrote = spp.write(&big);
+        // SAFETY: both pipes are live.
+        let o_code = unsafe { oracle::oracle_os_process_pipe_destroy(opp) };
+        let s_code = spp.destroy();
+        assert_eq!(s_wrote, o_wrote);
+        assert_eq!(s_wrote, 0);
+        assert_eq!(s_code, o_code);
+    }
+
+    proptest! {
+        /// Random payloads through `cat > /dev/null` in write mode: full
+        /// short counts and exit codes match.
+        #[test]
+        fn write_matches_oracle(payload in proptest::collection::vec(any::<u8>(), 0..1024)) {
+            let opp = spawn_oracle(&cstring(b"cat > /dev/null"), &cstring(b"w"));
+            prop_assert!(!opp.is_null());
+            let mut spp = spawn_shim(b"cat > /dev/null", b"w").expect("spawn");
+            // SAFETY: `opp` is live; `payload` covers its length.
+            let o_wrote = unsafe {
+                oracle::oracle_os_process_pipe_write(opp, payload.as_ptr(), payload.len())
+            };
+            let s_wrote = spp.write(&payload);
+            prop_assert_eq!(s_wrote, o_wrote);
+            prop_assert_eq!(s_wrote, payload.len());
+            // SAFETY: `opp` is live.
+            let o_code = unsafe { oracle::oracle_os_process_pipe_destroy(opp) };
+            let s_code = spp.destroy();
+            prop_assert_eq!(s_code, o_code);
+        }
+
+        /// Random read chunk sizes over a fixed output: concatenations and
+        /// codes match regardless of chunking.
+        #[test]
+        fn read_chunked_matches_oracle(chunk in 1usize..64) {
+            let opp = spawn_oracle(&cstring(b"printf '0123456789abcdef'"), &cstring(b"r"));
+            prop_assert!(!opp.is_null());
+            let mut spp = spawn_shim(b"printf '0123456789abcdef'", b"r").expect("spawn");
+            let mut o_out = Vec::new();
+            let mut s_out = Vec::new();
+            let mut o_buf = vec![0u8; chunk];
+            let mut s_buf = vec![0u8; chunk];
+            loop {
+                // SAFETY: `opp` is live; buffers cover their lengths.
+                let n = unsafe {
+                    oracle::oracle_os_process_pipe_read(
+                        opp,
+                        o_buf.as_mut_ptr(),
+                        o_buf.len(),
+                    )
+                };
+                if n == 0 {
+                    break;
+                }
+                o_out.extend_from_slice(&o_buf[..n]);
+            }
+            loop {
+                let n = spp.read(&mut s_buf);
+                if n == 0 {
+                    break;
+                }
+                s_out.extend_from_slice(&s_buf[..n]);
+            }
+            // SAFETY: `opp` is live.
+            let o_code = unsafe { oracle::oracle_os_process_pipe_destroy(opp) };
+            let s_code = spp.destroy();
+            prop_assert_eq!(s_out.as_slice(), o_out.as_slice());
+            prop_assert_eq!(s_out, b"0123456789abcdef");
+            prop_assert_eq!(s_code, o_code);
+        }
+    }
+}
