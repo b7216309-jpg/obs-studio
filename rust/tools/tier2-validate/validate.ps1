@@ -6,12 +6,24 @@
 # Prerequisites: cmake, Visual Studio, and cmocka (vcpkg install
 # cmocka:x64-windows). The windows-ci-x64 preset downloads the pre-built
 # obs-deps during configure.
-param([string]$CMockaPrefix)
+#
+# -Repeat N reruns the tests (or those matching -Tests REGEX) up to N times in
+# both builds after the normal ctest run, stopping at the first failure
+# (ctest --repeat until-fail:N), e.g.
+#   validate.ps1 -CMockaPrefix ... -Repeat 100 -Tests 'test_threading|test_task'
+param(
+  [string]$CMockaPrefix,
+  [ValidateRange(0, [int]::MaxValue)][int]$Repeat = 0,
+  [string]$Tests
+)
 
 $ErrorActionPreference = 'Stop'
 
 if (-not $CMockaPrefix) {
   throw 'Pass -CMockaPrefix <vcpkg installed/x64-windows directory>'
+}
+if ($Tests -and $Repeat -eq 0) {
+  throw '-Tests only applies with -Repeat'
 }
 $CMockaPrefix = $CMockaPrefix -replace '\\', '/'
 
@@ -63,6 +75,15 @@ foreach ($mode in 'OFF', 'ON') {
   Write-Host "== [$mode] ctest"
   ctest --test-dir $build -C RelWithDebInfo --output-on-failure
   $ctestExit = $LASTEXITCODE
+
+  if ($ctestExit -eq 0 -and $Repeat -gt 0) {
+    $repeatArgs = @('--repeat', "until-fail:$Repeat")
+    if ($Tests) { $repeatArgs += @('-R', $Tests) }
+    Write-Host "== [$mode] ctest $($repeatArgs -join ' ')"
+    ctest --test-dir $build -C RelWithDebInfo --output-on-failure @repeatArgs
+    $ctestExit = $LASTEXITCODE
+  }
+
   $env:PATH = $savedPath
   if ($ctestExit -ne 0) { throw "ctest failed ($ctestExit)" }
 

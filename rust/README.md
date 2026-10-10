@@ -33,6 +33,7 @@ soldr cargo test --workspace                               # Tiers 1-3
 soldr cargo clippy --workspace --all-targets -- -D warnings
 soldr cargo fmt --all --check
 rust/tools/linux-validate/run.sh                           # Tier 2: C tests + ABI, OFF vs ON
+rust/tools/linux-validate/run.sh --repeat 100 --tests 'test_threading|test_task'  # + flake check
 ```
 
 CI runs these in `.github/workflows/build-project.yaml` (jobs `rust-tests`,

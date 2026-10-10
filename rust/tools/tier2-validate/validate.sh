@@ -7,7 +7,40 @@
 #
 # Prerequisites: cmake, Xcode, and `brew install cmocka`. The macos-ci preset
 # downloads the pre-built obs-deps during configure.
+#
+# Usage: validate.sh [--repeat N] [--tests REGEX]
+#   --repeat N     after the normal ctest run, rerun the tests (or those
+#                  matching --tests) up to N times in both builds, stopping
+#                  at the first failure (ctest --repeat until-fail:N)
+#   --tests REGEX  limit the repeat run to tests matching REGEX (ctest -R)
 set -euo pipefail
+
+repeat=0
+tests=
+while [ $# -gt 0 ]; do
+  case "$1" in
+  --repeat)
+    repeat="${2:-}"
+    shift 2 || { echo "--repeat needs a count" >&2; exit 2; }
+    ;;
+  --tests)
+    tests="${2:-}"
+    shift 2 || { echo "--tests needs a regex" >&2; exit 2; }
+    ;;
+  *)
+    echo "usage: validate.sh [--repeat N] [--tests REGEX]" >&2
+    exit 2
+    ;;
+  esac
+done
+if ! [[ "$repeat" =~ ^[0-9]+$ ]]; then
+  echo "--repeat must be a non-negative integer, got '$repeat'" >&2
+  exit 2
+fi
+if [ -n "$tests" ] && [ "$repeat" -eq 0 ]; then
+  echo "--tests only applies with --repeat" >&2
+  exit 2
+fi
 
 cd "$(dirname "$0")/../../.."
 
@@ -53,6 +86,13 @@ for mode in OFF ON; do
   echo "== [$mode] ctest"
   DYLD_FRAMEWORK_PATH="$framework_dir" DYLD_LIBRARY_PATH="$(dirname "$avcodec")" \
     ctest --test-dir "$build" -C RelWithDebInfo --output-on-failure
+
+  if [ "$repeat" -gt 0 ]; then
+    echo "== [$mode] ctest --repeat until-fail:$repeat${tests:+ -R $tests}"
+    DYLD_FRAMEWORK_PATH="$framework_dir" DYLD_LIBRARY_PATH="$(dirname "$avcodec")" \
+      ctest --test-dir "$build" -C RelWithDebInfo --output-on-failure \
+      --repeat "until-fail:$repeat" ${tests:+-R "$tests"}
+  fi
 
   nm -gU "$lib" | awk '{print $3}' | sort >"exports-$mode.txt"
 done
