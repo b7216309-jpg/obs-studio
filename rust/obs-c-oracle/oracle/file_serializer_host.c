@@ -3,6 +3,10 @@
  * make. On Windows they follow platform.c (wide fopen) and platform-windows.c
  * (DeleteFileW / MoveFileExW). */
 #define _FILE_OFFSET_BITS 64
+#ifndef _WIN32
+/* fseeko/ftello are POSIX; -std=c11 hides them without this. */
+#define _POSIX_C_SOURCE 200809L
+#endif
 
 #include <stdint.h>
 #include <stdio.h>
@@ -94,6 +98,25 @@ int os_rename(const char *old_path, const char *new_path)
 	free(new_wide);
 	return code;
 }
+
+int os_safe_replace(const char *target, const char *from, const char *backup)
+{
+	wchar_t *wtarget = target ? utf8_to_wide(target) : NULL;
+	wchar_t *wfrom = from ? utf8_to_wide(from) : NULL;
+	wchar_t *wbackup = backup ? utf8_to_wide(backup) : NULL;
+	int code = -1;
+
+	if (wtarget && wfrom && (!backup || wbackup)) {
+		if (ReplaceFileW(wtarget, wfrom, wbackup, 0, NULL, NULL))
+			code = 0;
+		else if (GetLastError() == ERROR_FILE_NOT_FOUND)
+			code = MoveFileExW(wfrom, wtarget, MOVEFILE_REPLACE_EXISTING) ? 0 : -1;
+	}
+	free(wtarget);
+	free(wfrom);
+	free(wbackup);
+	return code;
+}
 #else
 #include <unistd.h>
 
@@ -120,6 +143,13 @@ int os_unlink(const char *path)
 int os_rename(const char *old_path, const char *new_path)
 {
 	return rename(old_path, new_path);
+}
+
+int os_safe_replace(const char *target, const char *from, const char *backup)
+{
+	if (backup && access(target, F_OK) == 0 && rename(target, backup) != 0)
+		return -1;
+	return rename(from, target);
 }
 #endif
 
