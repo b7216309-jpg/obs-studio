@@ -1,0 +1,26 @@
+[package]
+name = "obs-codec-fuzz"
+version = "0.0.0"
+edition = "2024"
+license = "GPL-2.0-or-later"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+obs-codec = { path = ".." }
+obs-c-oracle = { path = "../../obs-c-oracle" }
+obs-util = { path = "../../obs-util" }
+
+# Not part of the main workspace: built only by `soldr cargo fuzz` (nightly).
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "hevc_diff"
+path = "fuzz_targets/hevc_diff.rs"
+test = false
+doc = false
+bench = false

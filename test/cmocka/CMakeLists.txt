@@ -101,6 +101,16 @@ endif()
 add_dependencies(cmocka-tests test_avc)
 add_test(test_avc ${CMAKE_CURRENT_BINARY_DIR}/test_avc)
 
+# HEVC helpers (obs-hevc.c, built only with ENABLE_HEVC)
+if(ENABLE_HEVC)
+  add_executable(test_hevc test_hevc.c)
+  target_include_directories(test_hevc PRIVATE ${CMOCKA_INCLUDE_DIR})
+  target_link_libraries(test_hevc PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
+
+  add_dependencies(cmocka-tests test_hevc)
+  add_test(test_hevc ${CMAKE_CURRENT_BINARY_DIR}/test_hevc)
+endif()
+
 # Formatted filename test (obs-rust/obs-studio#21). platform.c is compiled into
 # the test so the test's obs_get_video_info fixture replaces libobs's and no obs
 # core has to be started; its definitions take precedence over libobs's. utf8.c

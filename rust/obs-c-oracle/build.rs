@@ -31,6 +31,8 @@ fn main() {
         .file("oracle/crc32.c")
         .file("oracle/vec2.c")
         .file("oracle/nal.c")
+        .file("oracle/encoder_packet.c")
+        .file("oracle/hevc.c")
         .file("oracle/graphics_math_axisang.c")
         .file("oracle/graphics_math_bounds.c")
         .file("oracle/graphics_math_math_extra.c")
@@ -52,6 +54,8 @@ fn main() {
         .file("oracle/video_fourcc.c")
         .file("oracle/task.c")
         .include(&libobs)
+        // obs.h (for obs-hevc.c) needs the CMake-generated obsconfig.h.
+        .include("oracle/obsconfig")
         .std("c11");
     // task.c calls pthread_mutex_*/pthread_create plus the os_event/os_sem
     // helpers from threading-*.c. On Unix both come from the real sources
@@ -95,6 +99,9 @@ fn main() {
         "graphics/vec2.h",
         "obs-nal.c",
         "obs-nal.h",
+        "obs-hevc.c",
+        "obs-hevc.h",
+        "obs-encoder.h",
         "graphics/math-defs.h",
         "graphics/math-extra.h",
         "graphics/math-extra.c",
