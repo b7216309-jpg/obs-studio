@@ -14,8 +14,13 @@
 //!   hash lookups take NULL keys harmlessly in most cases but
 //!   `config_set_*` would store them; the shim treats null as abort.
 //! - Windows path encoding: the core writes the UTF-8 BOM and hands wide
-//!   paths to the OS like C, but `path_from_bytes` lossy-converts invalid
-//!   UTF-8 (`U+FFFD`) where C's UTF-8→UTF-16 conversion fails the open.
+//!   paths to the OS like C. `path_from_bytes` substitutes U+FFFD like C
+//!   (MultiByteToWideChar(CP_UTF8, 0) at libobs/util/utf8.c:47 has no
+//!   MB_ERR_INVALID_CHARS), but via a different maximal-invalid-subpart
+//!   rule, so a pre-existing file named after the resulting U+FFFD
+//!   sequence could open on one side and not the other; both return
+//!   CONFIG_FILENOTFOUND in the normal case. The oracle host stub uses
+//!   the stricter MB_ERR_INVALID_CHARS, which is not libobs behavior.
 //!   The oracle runs the POSIX side; paths here are byte strings.
 //! - `PTHREAD_MUTEX_RECURSIVE` reentrancy: C locks around calls that can
 //!   nest (set_default_* call the setters). Rust holds `Inner` mutably and
