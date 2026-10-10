@@ -310,3 +310,68 @@ fn safe_empty_commit_renames_empty_temp() {
     assert!(!temp.exists());
     assert_eq!(std::fs::read(&path).unwrap(), b"");
 }
+
+/// At most 64 bytes, so a destination replaced by a `/dev/full` symlink
+/// fails the comparison instead of reading forever.
+fn read_prefix(path: &Path) -> Vec<u8> {
+    use std::io::Read;
+    let mut buf = Vec::new();
+    std::fs::File::open(path)
+        .unwrap()
+        .take(64)
+        .read_to_end(&mut buf)
+        .unwrap();
+    buf
+}
+
+/// `safe_save_preserves_original_on_write_failure` in
+/// `test/cmocka/test_file_serializer_safe.c`: a failed write must not replace
+/// the destination.
+#[cfg(target_os = "linux")]
+#[test]
+fn test_safe_preserves_original_on_write_failure() {
+    let dir = Scratch::new();
+    let path = dir.join("cache.bin");
+    std::fs::write(&path, b"original").unwrap();
+    std::os::unix::fs::symlink("/dev/full", temp_path(&path, "tmp")).unwrap();
+
+    // Larger than the write buffer, so the error surfaces at once.
+    let big = vec![0u8; 64 * 1024];
+    let mut out = Output::create_safe(&path_bytes(&path), b"tmp").unwrap();
+    assert!(out.write(&big) < big.len());
+    drop(out);
+    assert_eq!(read_prefix(&path), b"original");
+}
+
+/// `safe_save_preserves_original_on_flush_failure`: a small write is
+/// buffered and succeeds; the full disk is only reported at the flush.
+#[cfg(target_os = "linux")]
+#[test]
+fn test_safe_preserves_original_on_flush_failure() {
+    let dir = Scratch::new();
+    let path = dir.join("cache.bin");
+    std::fs::write(&path, b"original").unwrap();
+    std::os::unix::fs::symlink("/dev/full", temp_path(&path, "tmp")).unwrap();
+
+    let mut out = Output::create_safe(&path_bytes(&path), b"tmp").unwrap();
+    assert_eq!(out.write(b"replacement"), b"replacement".len());
+    drop(out);
+    assert_eq!(read_prefix(&path), b"original");
+}
+
+/// `safe_save_preserves_original_on_rename_failure` (Unix: Windows cannot
+/// delete the still-open temporary file): the destination is
+/// never unlinked before the temporary file is known to be in place.
+#[cfg(unix)]
+#[test]
+fn test_safe_preserves_original_on_rename_failure() {
+    let dir = Scratch::new();
+    let path = dir.join("cache.bin");
+    std::fs::write(&path, b"original").unwrap();
+
+    let mut out = Output::create_safe(&path_bytes(&path), b"tmp").unwrap();
+    assert_eq!(out.write(b"replacement"), b"replacement".len());
+    std::fs::remove_file(temp_path(&path, "tmp")).unwrap();
+    drop(out);
+    assert_eq!(read_prefix(&path), b"original");
+}
