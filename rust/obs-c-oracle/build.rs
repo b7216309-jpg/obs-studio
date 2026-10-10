@@ -61,6 +61,7 @@ fn main() {
         .file("oracle/bmem.c")
         .file("oracle/test_stubs.c")
         .file("oracle/cf_tokenizer.c")
+        .file("oracle/video_matrices.c")
         .file("oracle/pipe_args.c");
     // Unix-only: pipe-posix.c needs <spawn.h>.
     if std::env::var_os("CARGO_CFG_UNIX").is_some() {
@@ -167,6 +168,7 @@ fn main() {
         "util/profiler.h",
         "util/platform.h",
         "media-io/video-fourcc.c",
+        "media-io/video-matrices.c",
         "media-io/video-io.h",
         "media-io/media-io-defs.h",
         "util/task.c",
