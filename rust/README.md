@@ -10,7 +10,7 @@ scripting APIs) while its internals are rewritten in Rust. Every port follows
 |---|---|
 | `obs-util/` | Ports of `libobs/util/*`: safe cores at the crate root, C ABI shims in `src/ffi/` |
 | `obs-graphics/` | Ports of `libobs/graphics/*` |
-| `obs-codec/` | Ports of the libobs codec bitstream helpers (`obs-nal.c`, `obs-hevc.c`, `obs-av1.c`; AVC to follow) |
+| `obs-codec/` | Ports of the libobs codec bitstream helpers (`obs-nal.c`, `obs-avc.c`, `obs-hevc.c`, `obs-av1.c`) |
 | `obs-media-io/` | Ports of `libobs/media-io/*` |
 | `obs-c-oracle/` | Test-only: original C sources compiled with `oracle_` symbols for layout and differential tests |
 | `libobs-rust/` | The single staticlib linked into libobs when `ENABLE_RUST_LIBOBS=ON` |
@@ -73,6 +73,7 @@ tests and run them with `ctest`.
 | `libobs/obs-nal.c` | `obs-codec::nal` | The C word-at-a-time search is replaced by a byte scan with the same result at any alignment; a start code in the last three bytes is not reported, as in C. A range starting within 3 bytes of address 0, such as `(NULL, NULL)`, returns `end`; C computes `end - 3`, wraps, and reads address 0. |
 | `libobs/media-io/video-fourcc.c` | `obs-media-io::video_fourcc` | No intentional differences. `enum video_format` crosses the C ABI as a `c_int`, like `serialize_seek_type` in obs-util. |
 | `libobs/media-io/video-matrices.c` | `obs-media-io::video_matrices` | No intentional differences. Each call computes its matrix with the C's operations in the same order, instead of filling a table on first use behind an unsynchronized `static bool`. `enum video_colorspace` and `enum video_range_type` cross the C ABI as `c_int`s. |
+| `libobs/obs-avc.c` | `obs-codec::avc` | Uses the shared NAL walk and packet helpers in `obs-codec::nal`. `obs_parse_avc_packet` keeps the `long` reference count in front of the data (4 bytes on Windows, 8 elsewhere); SPS/PPS sizes wrap to 16 bits in the header record, as in C. NULL data with size 0 gives empty results (the obs-nal NULL-range read in C). Fuzzed differentially against the C oracle by `rust/obs-codec/fuzz` target `avc_diff`; NULL/near-0 ranges are excluded (C UB). |
 | `libobs/obs-hevc.c` | `obs-codec::hevc` | Uses the shared NAL walk and packet helpers in `obs-codec::nal`. NULL data with size 0 gives empty results (the obs-nal NULL-range read in C). With `ENABLE_HEVC=OFF` and `ENABLE_RUST_LIBOBS=ON`, libobs still exports the four `obs_*hevc*` functions, which the C build leaves out. Fuzzed differentially against the C oracle by `rust/obs-codec/fuzz` target `hevc_diff`; NULL/near-0 ranges are excluded (C UB). |
 | `libobs/obs-av1.c` | `obs-codec::av1` | No intentional differences: the port follows obs-av1.c with its OBU bounds fix (#103), so an OBU never extends past the buffer and any bytes are a valid input. Differential fuzz target: `obs-codec/fuzz` (`av1_differential`). |
 
