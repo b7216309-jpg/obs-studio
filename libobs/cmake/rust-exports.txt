@@ -4,6 +4,7 @@
 array_output_serializer_free
 array_output_serializer_init
 array_output_serializer_reset
+axisang_from_quat
 base_get_log_handler
 base_set_crash_handler
 base_set_log_handler

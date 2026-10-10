@@ -270,6 +270,17 @@ target_link_libraries(test_quat PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
 add_dependencies(cmocka-tests test_quat)
 add_test(test_quat ${CMAKE_CURRENT_BINARY_DIR}/test_quat)
 
+# axisang test (graphics/axisang.c)
+add_executable(test_axisang test_axisang.c)
+target_include_directories(test_axisang PRIVATE ${CMOCKA_INCLUDE_DIR})
+target_link_libraries(test_axisang PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
+if(NOT MSVC)
+  target_link_libraries(test_axisang PRIVATE m)
+endif()
+
+add_dependencies(cmocka-tests test_axisang)
+add_test(test_axisang ${CMAKE_CURRENT_BINARY_DIR}/test_axisang)
+
 # vec2 test (graphics/vec2.c)
 add_executable(test_vec2 test_vec2.c)
 target_include_directories(test_vec2 PRIVATE ${CMOCKA_INCLUDE_DIR})

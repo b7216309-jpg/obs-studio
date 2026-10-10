@@ -183,7 +183,7 @@ target_sources(
 target_sources(
   libobs
   PRIVATE
-    graphics/axisang.c
+    $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:graphics/axisang.c>
     graphics/axisang.h
     graphics/bounds.c
     graphics/bounds.h
