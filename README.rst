@@ -1,3 +1,8 @@
+.. image:: docs/images/obs-rust-logo.png
+   :alt: obs-rust logo
+   :width: 128
+   :align: center
+
 This is a Rust Rewrite of OBS Studio.
 
 Same obs studio, but without the bugs. AI generated issues and PRs welcome.
