@@ -8,4 +8,6 @@
 use obs_c_oracle as _; // links the test bmalloc/bfree (oracle/test_bmem.c)
 
 pub mod ffi;
+pub mod matrix4;
 pub mod vec2;
+pub mod vec4;
