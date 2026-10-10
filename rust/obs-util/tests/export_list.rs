@@ -27,19 +27,27 @@ fn no_mangle_fns(src: &str) -> Vec<String> {
     out
 }
 
-#[test]
-fn rust_exports_list_matches_no_mangle_shims() {
-    let list = fs::read_to_string(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../libobs/cmake/rust-exports.txt"
-    ))
-    .expect("read rust-exports.txt");
-    let listed: BTreeSet<String> = list
-        .lines()
+fn symbol_list(rel: &str) -> BTreeSet<String> {
+    let text = fs::read_to_string(
+        concat!(env!("CARGO_MANIFEST_DIR"), "/../../libobs/cmake/").to_owned() + rel,
+    )
+    .unwrap_or_else(|_| panic!("read {rel}"));
+    text.lines()
         .map(str::trim)
         .filter(|l| !l.is_empty() && !l.starts_with('#'))
         .map(String::from)
-        .collect();
+        .collect()
+}
+
+#[test]
+fn rust_exports_list_matches_no_mangle_shims() {
+    let listed = symbol_list("rust-exports.txt");
+    let hidden = symbol_list("rust-hidden.txt");
+    let overlap: Vec<_> = listed.intersection(&hidden).collect();
+    assert!(
+        overlap.is_empty(),
+        "symbol is both exported and hidden: {overlap:?}"
+    );
 
     let mut found = BTreeSet::new();
     let mut visited = Vec::new();
@@ -66,11 +74,34 @@ fn rust_exports_list_matches_no_mangle_shims() {
         );
     }
 
-    let missing_from_list: Vec<_> = found.difference(&listed).collect();
-    let missing_from_src: Vec<_> = listed.difference(&found).collect();
+    let mut accounted = listed.clone();
+    accounted.extend(hidden.iter().cloned());
+    let missing_from_list: Vec<_> = found.difference(&accounted).collect();
+    let missing_from_src: Vec<_> = accounted.difference(&found).collect();
     assert!(
         missing_from_list.is_empty() && missing_from_src.is_empty(),
-        "shims missing from rust-exports.txt: {missing_from_list:?}; \
+        "shims missing from rust-exports.txt and rust-hidden.txt: {missing_from_list:?}; \
          listed but no #[no_mangle] shim in rust/*/src/ffi:{missing_from_src:?}"
     );
+
+    let map = fs::read_to_string(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../libobs/cmake/rust-exports.map"
+    ))
+    .expect("read rust-exports.map");
+    let macos = fs::read_to_string(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../libobs/cmake/rust-unexports-macos.txt"
+    ))
+    .expect("read rust-unexports-macos.txt");
+    for name in &hidden {
+        assert!(
+            map.contains(&format!("{name};")),
+            "{name} is hidden but rust-exports.map does not list it as local"
+        );
+        assert!(
+            macos.lines().any(|line| line.trim() == format!("_{name}")),
+            "{name} is hidden but rust-unexports-macos.txt has no _{name}"
+        );
+    }
 }

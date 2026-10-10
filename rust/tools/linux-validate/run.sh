@@ -29,9 +29,15 @@ if [ -n "${OBS_CCACHE_DIR:-}" ]; then
   env+=(-v "$OBS_CCACHE_DIR:/ccache" -e CCACHE_DIR=/ccache)
 fi
 docker build -q -t obs-rust-linux-validate "$here" >/dev/null
-docker run --rm \
-  -v "$repo:/ro:ro" \
-  "${env[@]}" \
-  -v "$here/validate.sh:/validate.sh:ro" \
-  -v obs-rust-linux-validate-build:/build \
+# bash 3.2 (macOS /bin/bash) errors on "${env[@]}" when the array is empty
+# and set -u is on. Ubuntu bash does not. A normal checkout leaves it empty.
+run=(docker run --rm -v "$repo:/ro:ro")
+if [ "${#env[@]}" -gt 0 ]; then
+  run+=("${env[@]}")
+fi
+run+=(
+  -v "$here/validate.sh:/validate.sh:ro"
+  -v obs-rust-linux-validate-build:/build
   obs-rust-linux-validate /validate.sh "$@"
+)
+"${run[@]}"

@@ -1,0 +1,96 @@
+/* Drivers for the base parity test. They build a real va_list in C and call
+ * either the Rust-backed adapter (blog / blogva) or the original oracle. */
+#include <stdarg.h>
+#include <stdio.h>
+
+#include <util/base.h>
+
+struct base_test_rec {
+	int calls;
+	int level;
+	char message[256];
+};
+
+void base_test_record(int log_level, const char *format, va_list args, void *param)
+{
+	struct base_test_rec *rec = param;
+
+	rec->calls++;
+	rec->level = log_level;
+	vsnprintf(rec->message, sizeof(rec->message), format, args);
+}
+
+void *base_test_record_ptr(void)
+{
+	return (void *)base_test_record;
+}
+
+void base_test_flush(void)
+{
+	fflush(stdout);
+	fflush(stderr);
+}
+
+void oracle_blog(int log_level, const char *format, ...);
+void oracle_blogva(int log_level, const char *format, va_list args);
+
+static void call_va(void (*fn)(int, const char *, va_list), int level, const char *fmt, ...)
+{
+	va_list args;
+
+	va_start(args, fmt);
+	fn(level, fmt, args);
+	va_end(args);
+}
+
+void base_test_rust_blog_i(int level, const char *fmt, int v)
+{
+	blog(level, fmt, v);
+}
+
+void base_test_oracle_blog_i(int level, const char *fmt, int v)
+{
+	oracle_blog(level, fmt, v);
+}
+
+void base_test_rust_blog_s(int level, const char *fmt, const char *s)
+{
+	blog(level, fmt, s);
+}
+
+void base_test_oracle_blog_s(int level, const char *fmt, const char *s)
+{
+	oracle_blog(level, fmt, s);
+}
+
+void base_test_rust_blog_ss(int level, const char *fmt, const char *a, const char *b)
+{
+	blog(level, fmt, a, b);
+}
+
+void base_test_oracle_blog_ss(int level, const char *fmt, const char *a, const char *b)
+{
+	oracle_blog(level, fmt, a, b);
+}
+
+void base_test_rust_blog_0(int level, const char *fmt)
+{
+	/* blog() is PRINTFATTR, so a runtime format with no extra args trips
+	 * -Wformat-security. blogva is the same call blog makes. */
+	call_va(blogva, level, fmt);
+}
+
+void base_test_oracle_blog_0(int level, const char *fmt)
+{
+	oracle_blog(level, fmt);
+}
+
+void base_test_rust_blogva_si(int level, const char *fmt, const char *s, int v)
+{
+	call_va(blogva, level, fmt, s, v);
+}
+
+void base_test_oracle_blogva_si(int level, const char *fmt, const char *s, int v)
+{
+	call_va(oracle_blogva, level, fmt, s, v);
+}
