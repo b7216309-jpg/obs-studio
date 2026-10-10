@@ -35,7 +35,7 @@ fn symbol_list(rel: &str) -> BTreeSet<String> {
     text.lines()
         .map(str::trim)
         .filter(|l| !l.is_empty() && !l.starts_with('#'))
-        .map(String::from)
+        .filter_map(|l| l.split_whitespace().next().map(String::from))
         .collect()
 }
 
@@ -104,4 +104,75 @@ fn rust_exports_list_matches_no_mangle_shims() {
             "{name} is hidden but rust-unexports-macos.txt has no _{name}"
         );
     }
+}
+
+/// Names of no_mangle fns inside a `#[cfg(unix)] mod name { ... }` block
+/// (closed by a `}` in column 0). On Windows the C implementation of those
+/// symbols stays in libobs, so they must not be /EXPORTed from Rust there.
+fn unix_only_fns(src: &str) -> Vec<String> {
+    let lines: Vec<&str> = src.lines().collect();
+    let mut out = Vec::new();
+    let mut i = 0;
+    while i < lines.len() {
+        if lines[i].trim() == "#[cfg(unix)]"
+            && lines
+                .get(i + 1)
+                .is_some_and(|l| l.starts_with("mod ") && l.trim_end().ends_with('{'))
+        {
+            let start = i + 2;
+            let end = lines[start..]
+                .iter()
+                .position(|l| *l == "}")
+                .map_or(lines.len(), |p| start + p);
+            out.extend(no_mangle_fns(&lines[start..end].join("\n")));
+            i = end;
+        }
+        i += 1;
+    }
+    out
+}
+
+/// `rust-exports.txt` lines are `symbol` or `symbol unix`. The `unix`
+/// marker keeps libobs/cmake/rust.cmake from emitting `/EXPORT:symbol` on
+/// Windows, where the shim is not compiled and the C file (e.g.
+/// util/pipe-windows.c) still provides the dllexport'ed symbol.
+#[test]
+fn unix_only_shims_are_marked_unix_in_rust_exports() {
+    let text = fs::read_to_string(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../libobs/cmake/rust-exports.txt"
+    ))
+    .expect("read rust-exports.txt");
+    let marked: BTreeSet<String> = text
+        .lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty() && !l.starts_with('#'))
+        .filter_map(|l| {
+            let mut it = l.split_whitespace();
+            let name = it.next()?;
+            (it.next() == Some("unix")).then(|| name.to_owned())
+        })
+        .collect();
+    let mut unix_only = BTreeSet::new();
+    for krate in fs::read_dir(concat!(env!("CARGO_MANIFEST_DIR"), "/..")).expect("read rust/") {
+        let ffi_dir = krate.expect("dir entry").path().join("src/ffi");
+        if !ffi_dir.is_dir() {
+            continue;
+        }
+        for entry in fs::read_dir(&ffi_dir).expect("read src/ffi") {
+            let path = entry.expect("dir entry").path();
+            if path.extension().is_some_and(|e| e == "rs") {
+                let src = fs::read_to_string(&path).expect("read ffi source");
+                unix_only.extend(unix_only_fns(&src));
+            }
+        }
+    }
+    assert!(
+        unix_only.contains("os_process_pipe_create"),
+        "cfg(unix) shim scan found nothing: {unix_only:?}"
+    );
+    assert_eq!(
+        marked, unix_only,
+        "rust-exports.txt `unix` markers must match the cfg(unix) shims"
+    );
 }
