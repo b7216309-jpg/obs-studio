@@ -39,14 +39,14 @@ Quaternion
 
 ---------------------
 
-.. function:: void quat_set(struct quat *dst, float x, float y)
+.. function:: void quat_set(struct quat *dst, float x, float y, float z, float w)
 
    Sets the individual components of a quaternion.
 
    :param dst: Destination
    :param x:   X component
    :param y:   Y component
-   :param y:   Z component
+   :param z:   Z component
    :param w:   W component
 
 ---------------------
