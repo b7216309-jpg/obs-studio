@@ -303,6 +303,14 @@ endif()
 add_dependencies(cmocka-tests test_vec4)
 add_test(test_vec4 ${CMAKE_CURRENT_BINARY_DIR}/test_vec4)
 
+# video fourcc test (media-io/video-fourcc.c)
+add_executable(test_video_fourcc test_video_fourcc.c)
+target_include_directories(test_video_fourcc PRIVATE ${CMOCKA_INCLUDE_DIR})
+target_link_libraries(test_video_fourcc PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
+
+add_dependencies(cmocka-tests test_video_fourcc)
+add_test(test_video_fourcc ${CMAKE_CURRENT_BINARY_DIR}/test_video_fourcc)
+
 # Exercise AV1 encoder configuration against real FFmpeg options without a
 # running OBS video session, then encode a small synthetic sequence with SVT.
 find_package(FFmpeg 8.0 REQUIRED avcodec avformat avutil)

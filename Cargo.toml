@@ -11,3 +11,8 @@ publish = false
 [profile.release]
 # libobs links the Rust staticlib; keep panics from unwinding across the C ABI.
 panic = "abort"
+
+# obs-media-io's video_fourcc parity test checks every u32 against the C
+# oracle; optimized, it takes seconds instead of minutes in `cargo test`.
+[profile.dev.package.obs-media-io]
+opt-level = 3

@@ -277,6 +277,7 @@ rust/
     tests/bitstream_layout.rs # Tier 2: struct layout vs. C header
     tests/bitstream_parity.rs # Tier 3: proptest vs. C oracle
   obs-graphics/               # ports of libobs/graphics/*
+  obs-media-io/               # ports of libobs/media-io/*
   obs-c-oracle/               # dev-only: original C compiled with oracle_ prefix
     build.rs
     oracle/bitstream.c        # #define renames + #include of libobs/util/bitstream.c
