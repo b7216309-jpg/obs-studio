@@ -406,3 +406,20 @@ if(TARGET OBS::outputs)
   add_dependencies(cmocka-tests test_rtmp_error)
   add_test(test_rtmp_error ${CMAKE_CURRENT_BINARY_DIR}/test_rtmp_error)
 endif()
+
+# Build obs-outputs' FLV tags from flv-mux.c, without librtmp's network code.
+if(TARGET OBS::outputs)
+  add_executable(
+    test_flv_mux
+    test_flv_mux.c
+    "${CMAKE_SOURCE_DIR}/plugins/obs-outputs/flv-mux.c"
+    "${CMAKE_SOURCE_DIR}/plugins/obs-outputs/librtmp/amf.c"
+    "${CMAKE_SOURCE_DIR}/plugins/obs-outputs/librtmp/log.c"
+  )
+  # No network code is built, so librtmp's TLS types are not needed.
+  target_compile_definitions(test_flv_mux PRIVATE NO_CRYPTO)
+  target_include_directories(test_flv_mux PRIVATE ${CMOCKA_INCLUDE_DIR} "${CMAKE_SOURCE_DIR}/plugins/obs-outputs")
+  target_link_libraries(test_flv_mux PRIVATE OBS::libobs ${CMOCKA_LIBRARIES} $<$<PLATFORM_ID:Windows>:ws2_32>)
+  add_dependencies(cmocka-tests test_flv_mux)
+  add_test(test_flv_mux ${CMAKE_CURRENT_BINARY_DIR}/test_flv_mux)
+endif()
