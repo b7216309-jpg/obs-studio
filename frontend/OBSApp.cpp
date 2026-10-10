@@ -23,6 +23,7 @@
 #include <utility/CrashHandler.hpp>
 #include <utility/OBSEventFilter.hpp>
 #include <utility/OBSProxyStyle.hpp>
+#include <utility/product-name.h>
 #if defined(_WIN32) || defined(ENABLE_SPARKLE_UPDATER)
 #include <utility/models/branches.hpp>
 #endif
@@ -1366,6 +1367,22 @@ bool OBSApp::OBSInit()
 		[this](const QString &fileUrl) { emit this->logUploadFinished(OBS::LogFileType::CrashLog, fileUrl); });
 
 	return true;
+}
+
+/* Product name and version for display: "OBS <version>", or for the Rust build
+ * (ENABLE_RUST_LIBOBS) "OBS-Studio-Rust <rust version> (based on OBS <version>)". */
+string OBSApp::GetProductString(bool platform) const
+{
+#ifdef OBS_RUST_VERSION
+	const char *rust_version = OBS_RUST_VERSION;
+#else
+	const char *rust_version = nullptr;
+#endif
+	string version = GetVersionString(platform);
+	int len = obs_product_string(nullptr, 0, version.c_str(), rust_version);
+	string product(len > 0 ? (size_t)len : 0, '\0');
+	obs_product_string(product.data(), product.size() + 1, version.c_str(), rust_version);
+	return product;
 }
 
 string OBSApp::GetVersionString(bool platform) const

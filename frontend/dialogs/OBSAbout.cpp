@@ -2,6 +2,7 @@
 
 #include <widgets/OBSBasic.hpp>
 #include <utility/RemoteTextThread.hpp>
+#include <utility/product-name.h>
 
 #include <qt-wrappers.hpp>
 
@@ -27,7 +28,13 @@ OBSAbout::OBSAbout(QWidget *parent) : QDialog(parent), ui(new Ui::OBSAbout)
 		bitness = " (64 bit)";
 	}
 
+#ifdef OBS_RUST_VERSION
+	char product[256];
+	obs_product_string(product, sizeof(product), obs_get_version_string(), OBS_RUST_VERSION);
+	QString ver = QT_UTF8(product);
+#else
 	QString ver = obs_get_version_string();
+#endif
 
 	ui->version->setText(ver + bitness);
 

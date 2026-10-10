@@ -288,7 +288,7 @@ void OBSBasic::UploadLog(const char *subdir, const char *file, const LogUploadTy
 	ui->menuLogFiles->setEnabled(false);
 
 	stringstream ss;
-	ss << "OBS " << App()->GetVersionString(false) << " log file uploaded at " << CurrentDateTimeString()
+	ss << App()->GetProductString(false) << " log file uploaded at " << CurrentDateTimeString()
 	   << ((uploadType == OBS::LogFileType::CurrentAppLog) ? " (Active Log)" : " (Complete Log)") << "\n\n"
 	   << fileString;
 

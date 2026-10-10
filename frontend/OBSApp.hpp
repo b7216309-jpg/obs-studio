@@ -193,6 +193,7 @@ public:
 	OBS::LogFileState getLogFileState(OBS::LogFileType type) const;
 
 	std::string GetVersionString(bool platform = true) const;
+	std::string GetProductString(bool platform = true) const;
 	bool IsPortableMode();
 	bool IsUpdaterDisabled();
 	bool IsMissingFilesCheckDisabled();

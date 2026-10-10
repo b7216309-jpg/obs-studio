@@ -80,7 +80,7 @@ std::pair<OBS::TimePoint, std::string> buildCrashLogUploadContent(OBS::PlatformT
 
 	switch (platformType) {
 	case OBS::PlatformType::Windows:
-		uploadLogMessage << "OBS " << App()->GetVersionString(false) << " crash file uploaded at "
+		uploadLogMessage << App()->GetProductString(false) << " crash file uploaded at "
 				 << std::put_time(&uploadTimeLocal, "%Y-%m-%d, %X") << "\n\n"
 				 << crashLogFileContent;
 		break;

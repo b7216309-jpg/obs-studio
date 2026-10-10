@@ -337,7 +337,7 @@ OBSBasic::OBSBasic(QWidget *parent) : OBSMainWindow(parent), undo_s(ui), ui(new 
 	installEventFilter(shortcutFilter);
 
 	stringstream name;
-	name << "OBS " << App()->GetVersionString();
+	name << App()->GetProductString();
 	blog(LOG_INFO, "%s", name.str().c_str());
 	blog(LOG_INFO, "---------------------------------");
 
@@ -1982,12 +1982,16 @@ void OBSBasic::UpdateTitleBar()
 	const char *profile = config_get_string(App()->GetUserConfig(), "Basic", "Profile");
 	const char *sceneCollection = config_get_string(App()->GetUserConfig(), "Basic", "SceneCollection");
 
+#ifdef OBS_RUST_VERSION
+	name << App()->GetProductString(false);
+#else
 	name << "OBS ";
 	if (previewProgramMode) {
 		name << "Studio ";
 	}
 
 	name << App()->GetVersionString(false);
+#endif
 	if (safe_mode) {
 		name << " (" << Str("TitleBar.SafeMode") << ")";
 	}

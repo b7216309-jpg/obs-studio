@@ -1056,7 +1056,11 @@ int main(int argc, char *argv[])
 			exit(0);
 
 		} else if (arg_is(argv[i], "--version", "-V")) {
+#ifdef OBS_RUST_VERSION
+			std::cout << App()->GetProductString(false) << "\n";
+#else
 			std::cout << "OBS Studio - " << App()->GetVersionString(false) << "\n";
+#endif
 			exit(0);
 		}
 	}
