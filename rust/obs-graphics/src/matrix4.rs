@@ -23,6 +23,12 @@ impl Matrix4 {
     /// values, so it is exact.
     #[must_use]
     pub const fn transpose(&self) -> Self {
-        todo!()
+        let (x, y, z, t) = (self.x, self.y, self.z, self.t);
+        Self::new(
+            Vec4::new(x.x, y.x, z.x, t.x),
+            Vec4::new(x.y, y.y, z.y, t.y),
+            Vec4::new(x.z, y.z, z.z, t.z),
+            Vec4::new(x.w, y.w, z.w, t.w),
+        )
     }
 }

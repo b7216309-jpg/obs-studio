@@ -223,7 +223,7 @@ target_sources(
     graphics/vec2.h
     graphics/vec3.c
     graphics/vec3.h
-    graphics/vec4.c
+    $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:graphics/vec4.c>
     graphics/vec4.h
 )
 
