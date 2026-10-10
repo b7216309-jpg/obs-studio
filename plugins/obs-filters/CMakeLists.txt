@@ -13,6 +13,8 @@ target_sources(
     color-key-filter.c
     compressor-filter.c
     crop-filter.c
+    cube-lut.c
+    cube-lut.h
     eq-filter.c
     expander-filter.c
     gain-filter.c
