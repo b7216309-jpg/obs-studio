@@ -18,7 +18,8 @@ static inline uint64_t leb128(const uint8_t *buf, size_t size, size_t *len)
 			break;
 		(*len)++;
 		leb128_byte = buf[i];
-		value |= (leb128_byte & 0x7f) << (i * 7);
+		/* shift in 64 bits: an int overflows from the 5th byte on */
+		value |= (uint64_t)(leb128_byte & 0x7f) << (i * 7);
 		if (!(leb128_byte & 0x80))
 			break;
 	}
@@ -52,12 +53,20 @@ static void parse_obu_header(const uint8_t *buf, size_t size, size_t *obu_start,
 
 	(*obu_start)++;
 
+	/* an extension byte that is not there: the OBU is what is left */
+	if (*obu_start > size)
+		*obu_start = size;
+
 	if (has_size_field)
 		*obu_size = (size_t)leb128(buf + *obu_start, size - *obu_start, &size_len);
 	else
-		*obu_size = size - 1;
+		*obu_size = size - *obu_start; /* sz - 1 - obu_extension_flag */
 
 	*obu_start += size_len;
+
+	/* never claim more than the buffer holds */
+	if (*obu_size > size - *obu_start)
+		*obu_size = size - *obu_start;
 }
 
 // Pass a static 10 byte buffer in. The max size for a leb128.
