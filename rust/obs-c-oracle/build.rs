@@ -39,6 +39,9 @@ fn main() {
         .file("oracle/graphics_math_quat.c")
         .file("oracle/graphics_math_vec3.c")
         .file("oracle/graphics_math_vec4.c")
+        .file("oracle/base.c")
+        .file("oracle/base_drive.c")
+        .file(libobs.join("util/base-variadic.c"))
         .include(&libobs)
         .std("c11")
         .compile("obs_c_oracle");
@@ -86,6 +89,11 @@ fn main() {
         "graphics/vec4.c",
         "graphics/vec4.h",
         "util/sse-intrin.h",
+        "util/base.c",
+        "util/base.h",
+        "util/base-variadic.c",
+        "util/c99defs.h",
+        "util/threading.h",
     ] {
         println!("cargo:rerun-if-changed={}", libobs.join(header).display());
     }

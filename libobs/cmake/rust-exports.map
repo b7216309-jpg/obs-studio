@@ -6,4 +6,9 @@
     _ZN*;
     _R*;
     rust_eh_personality;
+    /* Rust state for base.c. The variadic entry points stay in
+     * util/base-variadic.c and keep the public names blog/blogva/bcrash. */
+    base_begin_crash;
+    base_default_log_handler;
+    base_log_literal;
 };
