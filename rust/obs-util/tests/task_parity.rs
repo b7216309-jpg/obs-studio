@@ -18,7 +18,8 @@
 //! - A NULL `os_task_t`: C calls the pointer unconditionally and crashes;
 //!   the shim aborts.
 //! - `os_task_queue_inside(NULL)`: C dereferences the pointer with no NULL
-//!   check (UB); the shim returns false.
+//!   check (UB); the shim returns false. Likewise a NULL queue passed to
+//!   `queue_task` (C dereferences it; the shim returns false).
 //!
 //! Reminder: the mutation check (break the core, see this file fail) is done
 //! once per port, not on every change.
