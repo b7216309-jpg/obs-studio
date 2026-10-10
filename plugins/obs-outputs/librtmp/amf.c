@@ -32,6 +32,21 @@ static const AMFObjectProperty AMFProp_Invalid = { {0, 0}, AMF_INVALID };
 static const AMFObject AMFObj_Invalid = { 0, 0 };
 static const AVal AV_empty = { 0, 0 };
 
+/* Objects and arrays nest by recursion, as deep as the data says; the data
+ * comes from the server, so the depth is bounded. */
+#define AMF_MAX_DEPTH 128
+
+static int AMFProp_DecodeDepth(AMFObjectProperty *prop, const char *pBuffer,
+                               int nSize, int bDecodeName, int nDepth);
+static int AMF3Prop_DecodeDepth(AMFObjectProperty *prop, const char *pBuffer,
+                                int nSize, int bDecodeName, int nDepth);
+static int AMF_DecodeDepth(AMFObject *obj, const char *pBuffer, int nSize,
+                           int bDecodeName, int nDepth);
+static int AMF_DecodeArrayDepth(AMFObject *obj, const char *pBuffer, int nSize,
+                                int nArrayLen, int bDecodeName, int nDepth);
+static int AMF3_DecodeDepth(AMFObject *obj, const char *pBuffer, int nSize,
+                            int bAMFData, int nDepth);
+
 /* Data is Big-Endian */
 unsigned short
 AMF_DecodeInt16(const char *data)
@@ -495,9 +510,9 @@ AMF3ReadString(const char *data, AVal *str)
     return len;
 }
 
-int
-AMF3Prop_Decode(AMFObjectProperty *prop, const char *pBuffer, int nSize,
-                int bDecodeName)
+static int
+AMF3Prop_DecodeDepth(AMFObjectProperty *prop, const char *pBuffer, int nSize,
+                     int bDecodeName, int nDepth)
 {
     int nOriginalSize = nSize;
     AMF3DataType type;
@@ -598,7 +613,8 @@ AMF3Prop_Decode(AMFObjectProperty *prop, const char *pBuffer, int nSize,
     }
     case AMF3_OBJECT:
     {
-        int nRes = AMF3_Decode(&prop->p_vu.p_object, pBuffer, nSize, TRUE);
+        int nRes = AMF3_DecodeDepth(&prop->p_vu.p_object, pBuffer, nSize, TRUE,
+                                    nDepth + 1);
         if (nRes == -1)
             return -1;
         nSize -= nRes;
@@ -620,8 +636,15 @@ AMF3Prop_Decode(AMFObjectProperty *prop, const char *pBuffer, int nSize,
 }
 
 int
-AMFProp_Decode(AMFObjectProperty *prop, const char *pBuffer, int nSize,
-               int bDecodeName)
+AMF3Prop_Decode(AMFObjectProperty *prop, const char *pBuffer, int nSize,
+                int bDecodeName)
+{
+    return AMF3Prop_DecodeDepth(prop, pBuffer, nSize, bDecodeName, 0);
+}
+
+static int
+AMFProp_DecodeDepth(AMFObjectProperty *prop, const char *pBuffer, int nSize,
+                    int bDecodeName, int nDepth)
 {
     int nOriginalSize = nSize;
     int nRes;
@@ -694,7 +717,8 @@ AMFProp_Decode(AMFObjectProperty *prop, const char *pBuffer, int nSize,
     }
     case AMF_OBJECT:
     {
-        int nRes = AMF_Decode(&prop->p_vu.p_object, pBuffer, nSize, TRUE);
+        int nRes = AMF_DecodeDepth(&prop->p_vu.p_object, pBuffer, nSize, TRUE,
+                                   nDepth + 1);
         if (nRes == -1)
             return -1;
         nSize -= nRes;
@@ -722,7 +746,8 @@ AMFProp_Decode(AMFObjectProperty *prop, const char *pBuffer, int nSize,
         nSize -= 4;
 
         /* next comes the rest, mixed array has a final 0x000009 mark and names, so its an object */
-        nRes = AMF_Decode(&prop->p_vu.p_object, pBuffer + 4, nSize, TRUE);
+        nRes = AMF_DecodeDepth(&prop->p_vu.p_object, pBuffer + 4, nSize, TRUE,
+                               nDepth + 1);
         if (nRes == -1)
             return -1;
         nSize -= nRes;
@@ -738,8 +763,8 @@ AMFProp_Decode(AMFObjectProperty *prop, const char *pBuffer, int nSize,
         unsigned int nArrayLen = AMF_DecodeInt32(pBuffer);
         nSize -= 4;
 
-        nRes = AMF_DecodeArray(&prop->p_vu.p_object, pBuffer + 4, nSize,
-                               nArrayLen, FALSE);
+        nRes = AMF_DecodeArrayDepth(&prop->p_vu.p_object, pBuffer + 4, nSize,
+                                    nArrayLen, FALSE, nDepth + 1);
         if (nRes == -1)
             return -1;
         nSize -= nRes;
@@ -784,7 +809,8 @@ AMFProp_Decode(AMFObjectProperty *prop, const char *pBuffer, int nSize,
     }
     case AMF_AVMPLUS:
     {
-        int nRes = AMF3_Decode(&prop->p_vu.p_object, pBuffer, nSize, TRUE);
+        int nRes = AMF3_DecodeDepth(&prop->p_vu.p_object, pBuffer, nSize, TRUE,
+                                    nDepth + 1);
         if (nRes == -1)
             return -1;
         nSize -= nRes;
@@ -798,6 +824,13 @@ AMFProp_Decode(AMFObjectProperty *prop, const char *pBuffer, int nSize,
     }
 
     return nOriginalSize - nSize;
+}
+
+int
+AMFProp_Decode(AMFObjectProperty *prop, const char *pBuffer, int nSize,
+               int bDecodeName)
+{
+    return AMFProp_DecodeDepth(prop, pBuffer, nSize, bDecodeName, 0);
 }
 
 void
@@ -994,15 +1027,22 @@ AMF_EncodeArray(AMFObject *obj, char *pBuffer, char *pBufEnd)
     return pBuffer;
 }
 
-int
-AMF_DecodeArray(AMFObject *obj, const char *pBuffer, int nSize,
-                int nArrayLen, int bDecodeName)
+static int
+AMF_DecodeArrayDepth(AMFObject *obj, const char *pBuffer, int nSize,
+                     int nArrayLen, int bDecodeName, int nDepth)
 {
     int nOriginalSize = nSize;
     int bError = FALSE;
 
     obj->o_num = 0;
     obj->o_props = NULL;
+
+    if (nDepth > AMF_MAX_DEPTH)
+    {
+        RTMP_Log(RTMP_LOGERROR, "%s: AMF nested deeper than %d levels",
+                 __FUNCTION__, AMF_MAX_DEPTH);
+        return -1;
+    }
     while (nArrayLen > 0)
     {
         AMFObjectProperty prop;
@@ -1015,7 +1055,7 @@ AMF_DecodeArray(AMFObject *obj, const char *pBuffer, int nSize,
             break;
         }
 
-        nRes = AMFProp_Decode(&prop, pBuffer, nSize, bDecodeName);
+        nRes = AMFProp_DecodeDepth(&prop, pBuffer, nSize, bDecodeName, nDepth);
         if (nRes == -1)
         {
             bError = TRUE;
@@ -1035,7 +1075,15 @@ AMF_DecodeArray(AMFObject *obj, const char *pBuffer, int nSize,
 }
 
 int
-AMF3_Decode(AMFObject *obj, const char *pBuffer, int nSize, int bAMFData)
+AMF_DecodeArray(AMFObject *obj, const char *pBuffer, int nSize,
+                int nArrayLen, int bDecodeName)
+{
+    return AMF_DecodeArrayDepth(obj, pBuffer, nSize, nArrayLen, bDecodeName, 0);
+}
+
+static int
+AMF3_DecodeDepth(AMFObject *obj, const char *pBuffer, int nSize, int bAMFData,
+                 int nDepth)
 {
     int nOriginalSize = nSize;
     int32_t ref;
@@ -1043,6 +1091,13 @@ AMF3_Decode(AMFObject *obj, const char *pBuffer, int nSize, int bAMFData)
 
     obj->o_num = 0;
     obj->o_props = NULL;
+
+    if (nDepth > AMF_MAX_DEPTH)
+    {
+        RTMP_Log(RTMP_LOGERROR, "%s: AMF nested deeper than %d levels",
+                 __FUNCTION__, AMF_MAX_DEPTH);
+        return -1;
+    }
     if (bAMFData)
     {
         if (*pBuffer != AMF3_OBJECT)
@@ -1128,15 +1183,15 @@ AMF3_Decode(AMFObject *obj, const char *pBuffer, int nSize, int bAMFData)
 
             RTMP_Log(RTMP_LOGDEBUG, "Externalizable, TODO check");
 
-            nRes = AMF3Prop_Decode(&prop, pBuffer, nSize, FALSE);
+            nRes = AMF3Prop_DecodeDepth(&prop, pBuffer, nSize, FALSE, nDepth);
             if (nRes == -1)
+            {
                 RTMP_Log(RTMP_LOGDEBUG, "%s, failed to decode AMF3 property!",
                          __FUNCTION__);
-            else
-            {
-                nSize -= nRes;
-                pBuffer += nRes;
+                return -1;
             }
+            nSize -= nRes;
+            pBuffer += nRes;
 
             AMFProp_SetName(&prop, &name);
             AMF_AddProp(obj, &prop);
@@ -1148,10 +1203,13 @@ AMF3_Decode(AMFObject *obj, const char *pBuffer, int nSize, int bAMFData)
             {
                 if (nSize <= 0)
                     goto invalid;
-                nRes = AMF3Prop_Decode(&prop, pBuffer, nSize, FALSE);
+                nRes = AMF3Prop_DecodeDepth(&prop, pBuffer, nSize, FALSE, nDepth);
                 if (nRes == -1)
+                {
                     RTMP_Log(RTMP_LOGDEBUG, "%s, failed to decode AMF3 property!",
                              __FUNCTION__);
+                    return -1;
+                }
 
                 AMFProp_SetName(&prop, AMF3CD_GetProp(&cd, i));
                 AMF_AddProp(obj, &prop);
@@ -1167,7 +1225,9 @@ AMF3_Decode(AMFObject *obj, const char *pBuffer, int nSize, int bAMFData)
                 {
                     if (nSize <= 0)
                         goto invalid;
-                    nRes = AMF3Prop_Decode(&prop, pBuffer, nSize, TRUE);
+                    nRes = AMF3Prop_DecodeDepth(&prop, pBuffer, nSize, TRUE, nDepth);
+                    if (nRes == -1)
+                        return -1;
                     AMF_AddProp(obj, &prop);
 
                     pBuffer += nRes;
@@ -1184,13 +1244,27 @@ AMF3_Decode(AMFObject *obj, const char *pBuffer, int nSize, int bAMFData)
 }
 
 int
-AMF_Decode(AMFObject *obj, const char *pBuffer, int nSize, int bDecodeName)
+AMF3_Decode(AMFObject *obj, const char *pBuffer, int nSize, int bAMFData)
+{
+    return AMF3_DecodeDepth(obj, pBuffer, nSize, bAMFData, 0);
+}
+
+static int
+AMF_DecodeDepth(AMFObject *obj, const char *pBuffer, int nSize, int bDecodeName,
+                int nDepth)
 {
     int nOriginalSize = nSize;
     int bError = FALSE;		/* if there is an error while decoding - try to at least find the end mark AMF_OBJECT_END */
 
     obj->o_num = 0;
     obj->o_props = NULL;
+
+    if (nDepth > AMF_MAX_DEPTH)
+    {
+        RTMP_Log(RTMP_LOGERROR, "%s: AMF nested deeper than %d levels",
+                 __FUNCTION__, AMF_MAX_DEPTH);
+        return -1;
+    }
     while (nSize > 0)
     {
         AMFObjectProperty prop;
@@ -1212,7 +1286,7 @@ AMF_Decode(AMFObject *obj, const char *pBuffer, int nSize, int bDecodeName)
             continue;
         }
 
-        nRes = AMFProp_Decode(&prop, pBuffer, nSize, bDecodeName);
+        nRes = AMFProp_DecodeDepth(&prop, pBuffer, nSize, bDecodeName, nDepth);
         if (nRes == -1)
         {
             bError = TRUE;
@@ -1235,6 +1309,12 @@ AMF_Decode(AMFObject *obj, const char *pBuffer, int nSize, int bDecodeName)
         return -1;
 
     return nOriginalSize - nSize;
+}
+
+int
+AMF_Decode(AMFObject *obj, const char *pBuffer, int nSize, int bDecodeName)
+{
+    return AMF_DecodeDepth(obj, pBuffer, nSize, bDecodeName, 0);
 }
 
 void
