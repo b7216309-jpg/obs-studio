@@ -146,6 +146,48 @@ fn arb_bytes(max: usize) -> BoxedStrategy<Vec<u8>> {
     prop::collection::vec(proptest::arbitrary::any::<u8>(), 0..max).boxed()
 }
 
+/// A short name from a tiny alphabet so sections and keys collide, plus
+/// bytes that matter to the lexer (spaces, `=`, `]`, `\\`, non-ASCII).
+fn arb_name() -> BoxedStrategy<Vec<u8>> {
+    prop::collection::vec(
+        prop::sample::select(b"abAB =]\\\t#;\xc3\xff".to_vec()),
+        0..6,
+    )
+    .boxed()
+}
+
+/// Arbitrary INI text: either raw bytes, or lines drawn from well-formed
+/// and malformed shapes (unterminated/empty headers, trailing text after
+/// `]`, keys before any section, lines without `=`, empty keys, comments,
+/// escapes, CR/LF/CRLF endings, no final newline).
+fn arb_ini(max: usize) -> BoxedStrategy<Vec<u8>> {
+    let line = prop_oneof![
+        arb_name().prop_map(|n| [b"[".as_slice(), &n, b"]"].concat()),
+        arb_name().prop_map(|n| [b"[".as_slice(), &n].concat()),
+        Just(b"[]".to_vec()),
+        (arb_name(), arb_name()).prop_map(|(n, j)| [b"[".as_slice(), &n, b"]", &j].concat()),
+        (arb_name(), arb_bytes(24)).prop_map(|(k, v)| [k.as_slice(), b"=", &v].concat()),
+        arb_name(),
+        arb_bytes(24).prop_map(|v| [b"=".as_slice(), &v].concat()),
+        arb_name().prop_map(|c| [b"#".as_slice(), &c].concat()),
+        arb_name().prop_map(|c| [b";".as_slice(), &c].concat()),
+        arb_name().prop_map(|k| [k.as_slice(), b"=a\\nb\\\\c\\rd\\xe\\"].concat()),
+        Just(Vec::new()),
+        arb_bytes(32),
+    ];
+    let eol = prop::sample::select(vec![b"\n".as_slice(), b"\r\n", b"\r", b""]);
+    let lines = prop::collection::vec((line, eol), 0..48).prop_map(move |ls| {
+        let mut out = Vec::new();
+        for (l, e) in ls {
+            out.extend_from_slice(&l);
+            out.extend_from_slice(e);
+        }
+        out.truncate(max);
+        out
+    });
+    prop_oneof![1 => arb_bytes(max), 4 => lines].boxed()
+}
+
 fn arb_op() -> BoxedStrategy<Op> {
     let key = (arb_bytes(48), arb_bytes(48));
     prop_oneof![
@@ -535,7 +577,7 @@ proptest! {
     /// Arbitrary INI text through open_string: same sections, same names,
     /// same values reachable through the getters.
     #[test]
-    fn parity_open_string(text in arb_bytes(4096)) {
+    fn parity_open_string(text in arb_ini(4096)) {
         let (pair, oc, rc) = Pair::from_strings(&text);
         assert_eq!(oc, rc, "open_string return");
         pair.check_sections();
@@ -550,7 +592,7 @@ proptest! {
     /// observable return and then the saved bytes in separate temp dirs.
     #[test]
     fn parity_open_mutate_save(
-        text in arb_bytes(4096),
+        text in arb_ini(4096),
         ops in prop::collection::vec(arb_op(), 0..24),
     ) {
         let c_dir = scratch("c");
@@ -597,9 +639,9 @@ proptest! {
     /// user section identically (the C quirk is part of the contract).
     #[test]
     fn parity_defaults(
-        defaults in arb_bytes(2048),
+        defaults in arb_ini(2048),
         ops in prop::collection::vec(arb_op(), 1..24),
-        probes in prop::collection::vec((arb_bytes(48), arb_bytes(48)), 0..24),
+        probes in prop::collection::vec((arb_name(), arb_name()), 0..24),
     ) {
         let c_dir = scratch("cdef");
         let r_dir = scratch("rdef");
