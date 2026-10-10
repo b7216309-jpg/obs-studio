@@ -152,33 +152,3 @@ int os_safe_replace(const char *target, const char *from, const char *backup)
 	return rename(from, target);
 }
 #endif
-
-/* dstr.c (compiled into this oracle for dstr_copy / dstr_ncat) references
- * these. file-serializer.c does not call them. */
-size_t os_mbs_to_utf8_ptr(const char *str, size_t len, char **pstr)
-{
-	(void)str;
-	(void)len;
-	if (pstr)
-		*pstr = NULL;
-	return 0;
-}
-
-size_t os_utf8_to_wcs_ptr(const char *str, size_t len, wchar_t **pstr)
-{
-	(void)str;
-	(void)len;
-	if (pstr)
-		*pstr = NULL;
-	return 0;
-}
-
-size_t wchar_to_utf8(const wchar_t *in, size_t insize, char *out, size_t outsize, int flags)
-{
-	(void)in;
-	(void)insize;
-	(void)out;
-	(void)outsize;
-	(void)flags;
-	return 0;
-}
