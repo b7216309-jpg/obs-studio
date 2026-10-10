@@ -12,6 +12,7 @@ pub mod base;
 pub mod bitstream;
 pub mod bmem;
 pub mod cf_tokenizer;
+pub mod buffered_file_serializer;
 pub mod crc32;
 pub mod darray;
 pub mod dstr;
