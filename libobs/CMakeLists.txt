@@ -130,7 +130,7 @@ target_sources(
     util/source-profiler.c
     util/source-profiler.h
     util/sse-intrin.h
-    util/task.c
+    $<$<NOT:$<BOOL:${ENABLE_RUST_LIBOBS}>>:util/task.c>
     util/task.h
     util/text-lookup.c
     util/text-lookup.h

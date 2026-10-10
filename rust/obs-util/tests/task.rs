@@ -16,6 +16,7 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 
+use obs_c_oracle as _; // links the test bmalloc/bfree (oracle/test_bmem.c)
 use obs_util::task::TaskQueue;
 
 const NUM_TASKS: usize = 100;
@@ -215,10 +216,7 @@ fn task_queues_are_independent() {
     let _ = a.wait();
     let _ = b.wait();
 
-    assert_eq!(
-        *a_log.lock().unwrap(),
-        (0..8).collect::<Vec<_>>()
-    );
+    assert_eq!(*a_log.lock().unwrap(), (0..8).collect::<Vec<_>>());
     assert_eq!(
         *b_log.lock().unwrap(),
         (0..8).map(|i| i * 10).collect::<Vec<_>>()
