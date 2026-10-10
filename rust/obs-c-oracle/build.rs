@@ -34,6 +34,7 @@ fn main() {
         .file("oracle/encoder_packet.c")
         .file("oracle/hevc.c")
         .file("oracle/av1.c")
+        .file("oracle/avc.c")
         .file("oracle/graphics_math_axisang.c")
         .file("oracle/graphics_math_bounds.c")
         .file("oracle/graphics_math_math_extra.c")
@@ -72,7 +73,7 @@ fn main() {
     }
     oracle
         .include(&libobs)
-        // obs.h (for obs-hevc.c and obs-av1.c) needs the CMake-generated obsconfig.h.
+        // obs.h (for obs-hevc.c, obs-av1.c and obs-avc.c) needs the CMake-generated obsconfig.h.
         .include("oracle/obsconfig")
         // libobs/util/uthash.h includes <uthash.h>, a system header CMake
         // finds for the real build. The Rust test runners have no uthash
@@ -130,6 +131,8 @@ fn main() {
         "obs-hevc.h",
         "obs-av1.c",
         "obs-av1.h",
+        "obs-avc.c",
+        "obs-avc.h",
         "obs-encoder.h",
         "graphics/math-defs.h",
         "graphics/math-extra.h",
