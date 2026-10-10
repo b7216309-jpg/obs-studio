@@ -19,6 +19,7 @@ pub mod ffi;
 pub mod file_serializer;
 pub mod lexer;
 pub mod path_extension;
+pub mod pipe;
 pub mod profiler_snapshot;
 pub mod task;
 pub mod text_lookup;
